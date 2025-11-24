@@ -1,21 +1,21 @@
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import { resolve } from 'path'
+import vue from '@vitejs/plugin-vue';
+import { resolve } from 'path';
+import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [vue()],
   publicDir: 'public',
   resolve: {
     alias: {
-      '@': resolve(__dirname, './src')
-    }
+      '@': resolve(__dirname, './src'),
+    },
   },
   json: {
-    stringify: true
+    stringify: true,
   },
   optimizeDeps: {
     include: ['@reown/appkit', '@reown/appkit-adapter-wagmi', '@wagmi/vue'],
-    exclude: []
+    exclude: [],
   },
   build: {
     outDir: 'dist',
@@ -23,14 +23,14 @@ export default defineConfig({
     chunkSizeWarningLimit: 2000,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html')
+        main: resolve(__dirname, 'index.html'),
       },
       output: {
         inlineDynamicImports: true,
         entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
-      }
-    }
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+      },
+    },
   },
   server: {
     port: 3000,
@@ -40,7 +40,7 @@ export default defineConfig({
       '/send': 'http://localhost:8088',
       '/config.json': 'http://localhost:8088',
       '/balance': 'http://localhost:8088',
-      '/transaction': 'http://localhost:8088'
-    }
-  }
-})
+      '/transaction': 'http://localhost:8088',
+    },
+  },
+});

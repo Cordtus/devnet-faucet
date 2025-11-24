@@ -48,12 +48,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import NetworkInfo from './tabs/NetworkInfo.vue'
-import FaucetTab from './tabs/FaucetTab.vue'
-import RecentTransactionsTab from './tabs/RecentTransactionsTab.vue'
-import { useTransactions } from '../composables/useTransactions'
+import { ref } from 'vue';
+import { useTransactions } from '../composables/useTransactions';
+import FaucetTab from './tabs/FaucetTab.vue';
+import NetworkInfo from './tabs/NetworkInfo.vue';
+import RecentTransactionsTab from './tabs/RecentTransactionsTab.vue';
 
-const activeTab = ref('faucet')
-const { recentTransactions } = useTransactions()
+const activeTab = ref('faucet');
+const { recentTransactions } = useTransactions();
 </script>

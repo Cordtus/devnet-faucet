@@ -65,39 +65,41 @@
 </template>
 
 <script setup>
-import { ref, inject } from 'vue'
+import { inject, ref } from 'vue';
 
 const props = defineProps({
-  walletType: String // 'cosmos' or 'evm'
-})
+  walletType: String, // 'cosmos' or 'evm'
+});
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close']);
 
 // Inject the AppKit modal function
-const openAppKitModal = inject('openAppKitModal')
+const openAppKitModal = inject('openAppKitModal');
 
-const showModal = ref(true)
+const showModal = ref(true);
 
 const closeModal = () => {
-  showModal.value = false
-  emit('close')
-}
+  showModal.value = false;
+  emit('close');
+};
 
 const connectKeplrMobile = () => {
   // For Keplr mobile, we need to use WalletConnect
   // Keplr mobile supports WalletConnect v2
-  alert('Keplr mobile connection requires WalletConnect. Please use the WalletConnect option below to connect your Keplr mobile wallet.')
-  
+  alert(
+    'Keplr mobile connection requires WalletConnect. Please use the WalletConnect option below to connect your Keplr mobile wallet.'
+  );
+
   // Alternatively, provide install link if not installed
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   if (confirm('Would you like to install Keplr mobile wallet?')) {
     if (isIOS) {
-      window.open('https://apps.apple.com/app/keplr-wallet/id1567851089', '_blank')
+      window.open('https://apps.apple.com/app/keplr-wallet/id1567851089', '_blank');
     } else {
-      window.open('https://play.google.com/store/apps/details?id=com.chainapsis.keplr', '_blank')
+      window.open('https://play.google.com/store/apps/details?id=com.chainapsis.keplr', '_blank');
     }
   }
-}
+};
 
 const connectMetaMaskMobile = () => {
   // For MetaMask mobile, we should use WalletConnect
@@ -105,37 +107,39 @@ const connectMetaMaskMobile = () => {
   if (window.ethereum && window.ethereum.isMetaMask) {
     // MetaMask is already available (in-app browser)
     if (openAppKitModal) {
-      openAppKitModal()
+      openAppKitModal();
     }
-    closeModal()
+    closeModal();
   } else {
     // Use WalletConnect for external MetaMask app
-    alert('To connect MetaMask mobile, please use the WalletConnect option below and select MetaMask from the list of wallets.')
-    
+    alert(
+      'To connect MetaMask mobile, please use the WalletConnect option below and select MetaMask from the list of wallets.'
+    );
+
     // Optionally provide install link
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     if (confirm('Would you like to install MetaMask mobile wallet?')) {
       if (isIOS) {
-        window.open('https://apps.apple.com/app/metamask/id1438144202', '_blank')
+        window.open('https://apps.apple.com/app/metamask/id1438144202', '_blank');
       } else {
-        window.open('https://play.google.com/store/apps/details?id=io.metamask', '_blank')
+        window.open('https://play.google.com/store/apps/details?id=io.metamask', '_blank');
       }
     }
   }
-}
+};
 
 const connectRabbyMobile = () => {
   // Rabby doesn't have a mobile app yet, use WalletConnect
-  useWalletConnect()
-}
+  useWalletConnect();
+};
 
 const useWalletConnect = () => {
   // This will trigger the Reown AppKit modal
   if (openAppKitModal) {
-    openAppKitModal()
+    openAppKitModal();
   }
-  closeModal()
-}
+  closeModal();
+};
 </script>
 
 <style scoped>

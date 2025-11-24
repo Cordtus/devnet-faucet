@@ -107,168 +107,173 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useConfig } from '../../composables/useConfig'
-import { useTransactions } from '../../composables/useTransactions'
-import TransactionDetailsModal from '../TransactionDetailsModal.vue'
+import { ref } from 'vue';
+import { useConfig } from '../../composables/useConfig';
+import { useTransactions } from '../../composables/useTransactions';
+import TransactionDetailsModal from '../TransactionDetailsModal.vue';
 
-const { networkConfig } = useConfig()
-const { recentTransactions, removeTransaction, clearAllTransactions } = useTransactions()
+const { networkConfig } = useConfig();
+const { recentTransactions, removeTransaction, clearAllTransactions } = useTransactions();
 
-const selectedTransaction = ref(null)
-const copiedItem = ref(null)
+const selectedTransaction = ref(null);
+const copiedItem = ref(null);
 
 const showTransactionDetails = (tx) => {
-  selectedTransaction.value = tx
-}
+  selectedTransaction.value = tx;
+};
 
 const truncateHash = (hash) => {
-  if (!hash) return ''
-  if (hash.length <= 10) return hash
-  return `${hash.slice(0, 6)}...${hash.slice(-4)}`
-}
+  if (!hash) return '';
+  if (hash.length <= 10) return hash;
+  return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
+};
 
 const copyToClipboard = async (text, itemId) => {
   try {
-    await navigator.clipboard.writeText(text)
-    copiedItem.value = itemId
+    await navigator.clipboard.writeText(text);
+    copiedItem.value = itemId;
     setTimeout(() => {
-      copiedItem.value = null
-    }, 2000)
+      copiedItem.value = null;
+    }, 2000);
   } catch (err) {
-    console.error('Failed to copy:', err)
+    console.error('Failed to copy:', err);
   }
-}
+};
 
 const getActualTransactionHash = (tx) => {
-  if (!tx || !tx.data || !tx.data.result) return null
-  
-  const result = tx.data.result
-  
-  return result.transaction_hash || 
-         result.hash || 
-         (result.transactions && result.transactions[0]) ||
-         tx.hash ||
-         null
-}
+  if (!tx || !tx.data || !tx.data.result) return null;
+
+  const result = tx.data.result;
+
+  return (
+    result.transaction_hash ||
+    result.hash ||
+    (result.transactions && result.transactions[0]) ||
+    tx.hash ||
+    null
+  );
+};
 
 const getTransactionIcon = (tx) => {
   if (!tx.success) {
-    return 'fas fa-exclamation-triangle text-danger'
+    return 'fas fa-exclamation-triangle text-danger';
   }
   if (isNoTokensNeeded(tx)) {
-    return 'fas fa-info-circle text-warning'
+    return 'fas fa-info-circle text-warning';
   }
-  return 'fas fa-check-circle text-success'
-}
+  return 'fas fa-check-circle text-success';
+};
 
 const getTransactionBadgeClass = (tx) => {
   if (!tx.success) {
-    return 'bg-danger'
+    return 'bg-danger';
   }
   if (isNoTokensNeeded(tx)) {
-    return 'bg-warning text-dark'
+    return 'bg-warning text-dark';
   }
-  return 'bg-success'
-}
+  return 'bg-success';
+};
 
 const getTransactionStatus = (tx) => {
   if (!tx.success) {
-    return 'Failed'
+    return 'Failed';
   }
   if (isNoTokensNeeded(tx)) {
-    return 'Already Funded'
+    return 'Already Funded';
   }
-  return 'Success'
-}
+  return 'Success';
+};
 
 const isNoTokensNeeded = (tx) => {
   if (tx.data?.result?.message?.includes('sufficient balance')) {
-    return true
+    return true;
   }
   if (tx.data?.result?.tokens_sent && tx.data.result.tokens_sent.length === 0) {
-    return true
+    return true;
   }
   if (tx.data?.result?.status === 'no_tokens_sent') {
-    return true
+    return true;
   }
-  return false
-}
+  return false;
+};
 
 const getTransactionExplorerUrl = (tx) => {
-  if (!tx || !tx.data || !tx.data.result) return null
-  
-  const result = tx.data.result
-  
+  if (!tx || !tx.data || !tx.data.result) return null;
+
+  const result = tx.data.result;
+
   // Use provided explorer URL first
-  if (result.explorer_url) return result.explorer_url
-  
+  if (result.explorer_url) return result.explorer_url;
+
   // Get the actual transaction hash
-  const actualHash = getActualTransactionHash(tx)
-  
+  const actualHash = getActualTransactionHash(tx);
+
   // Generate URL based on transaction type and hash
   if (actualHash) {
     if (result.network_type === 'evm' || tx.addressType === 'evm') {
       // EVM transaction - use blockscout explorer
-      const explorerBase = networkConfig.value.evm?.explorer || 'https://evm-devnet-1.cloud.blockscout.com'
-      return `${explorerBase}/tx/${actualHash}`
+      const explorerBase =
+        networkConfig.value.evm?.explorer || 'https://evm-devnet-1.cloud.blockscout.com';
+      return `${explorerBase}/tx/${actualHash}`;
     } else if (result.network_type === 'cosmos' || tx.addressType === 'cosmos') {
       // Cosmos transaction - use explorer from config
-      const explorerBase = networkConfig.value.cosmos?.explorer || 'https://devnet-explorer.fly.dev/Cosmos%20Evm%20Devnet'
-      return `${explorerBase}/tx/${actualHash}`
+      const explorerBase =
+        networkConfig.value.cosmos?.explorer ||
+        'https://devnet-explorer.fly.dev/Cosmos%20Evm%20Devnet';
+      return `${explorerBase}/tx/${actualHash}`;
     }
   }
-  
-  return null
-}
+
+  return null;
+};
 
 const getTransactionExplorerLabel = (tx) => {
-  if (!tx || !tx.data || !tx.data.result) return 'View'
-  
-  const result = tx.data.result
-  
-  if (result.explorer_url) return 'View on Explorer'
-  
+  if (!tx || !tx.data || !tx.data.result) return 'View';
+
+  const result = tx.data.result;
+
+  if (result.explorer_url) return 'View on Explorer';
+
   // Generate label based on transaction type
   if (getActualTransactionHash(tx)) {
     if (result.network_type === 'evm' || tx.addressType === 'evm') {
-      return 'View on Blockscout'
+      return 'View on Blockscout';
     } else if (result.network_type === 'cosmos' || tx.addressType === 'cosmos') {
-      return 'View on Explorer'
+      return 'View on Explorer';
     }
   }
-  
-  return 'View'
-}
+
+  return 'View';
+};
 
 const formatTokenAmount = (amount, decimals = 18) => {
-  if (!amount) return '0'
-  
+  if (!amount) return '0';
+
   try {
-    const bigAmount = BigInt(amount)
-    const divisor = BigInt(10 ** decimals)
-    const whole = bigAmount / divisor
-    const fraction = bigAmount % divisor
-    
+    const bigAmount = BigInt(amount);
+    const divisor = BigInt(10 ** decimals);
+    const whole = bigAmount / divisor;
+    const fraction = bigAmount % divisor;
+
     if (fraction === 0n) {
-      return whole.toString()
+      return whole.toString();
     } else {
-      const fractionStr = fraction.toString().padStart(decimals, '0').replace(/0+$/, '')
-      return `${whole.toString()}.${fractionStr}`
+      const fractionStr = fraction.toString().padStart(decimals, '0').replace(/0+$/, '');
+      return `${whole.toString()}.${fractionStr}`;
     }
   } catch (error) {
-    return amount.toString()
+    return amount.toString();
   }
-}
+};
 
 const formatDate = (date) => {
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
-  }).format(date)
-}
+    minute: '2-digit',
+  }).format(date);
+};
 </script>
 
 <style scoped>
