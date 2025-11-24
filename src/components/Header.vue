@@ -3,7 +3,7 @@
     <div class="container">
       <div class="d-flex justify-content-between align-items-center">
         <div class="brand-container">
-          <h1 class="brand-logo">faucet</h1>
+          <h1 class="brand-logo">republic-ai</h1>
           <span class="brand-subtitle">DEVNET</span>
         </div>
         <nav class="nav-icons">
@@ -75,7 +75,7 @@ import { useConfig } from '../composables/useConfig';
 
 const { config } = useConfig();
 // biome-ignore lint/correctness/noUnusedVariables: used in template
-const projectName = computed(() => config.value?.project?.name || 'Devnet Faucet');
+const projectName = computed(() => config.value?.project?.name || 'Republic AI Faucet');
 // Version will be updated with each deployment
 // biome-ignore lint/correctness/noUnusedVariables: used in template
 const version = '1.1.0';

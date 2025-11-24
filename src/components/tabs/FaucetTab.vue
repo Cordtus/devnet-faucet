@@ -72,7 +72,7 @@
               type="text" 
               class="form-control" 
               v-model="address"
-              placeholder="cosmos... or 0x..."
+              placeholder="republic... or 0x..."
               :class="{ 
                 'is-valid': address && isValidAddress, 
                 'is-invalid': address && !isValidAddress 
@@ -292,8 +292,8 @@ const _handleCosmosConnect = async () => {
 
           <div class="d-grid gap-2 mb-3">
             <button class="btn btn-primary btn-sm" onclick="navigator.clipboard.readText().then(text => {
-              const input = document.querySelector('input[placeholder*=cosmos]');
-              if (input && (text.startsWith('cosmos') || text.startsWith('0x'))) {
+              const input = document.querySelector('input[placeholder*=republic]');
+              if (input && (text.startsWith('republic') || text.startsWith('0x'))) {
                 input.value = text;
                 input.dispatchEvent(new Event('input', { bubbles: true }));
               } else {
