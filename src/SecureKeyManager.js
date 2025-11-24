@@ -1,9 +1,9 @@
-import { keccak_256 } from '@noble/hashes/sha3';
 import { secp256k1 } from '@noble/curves/secp256k1';
-import { mnemonicToSeedSync, validateMnemonic } from 'bip39';
-import { BIP32Factory } from 'bip32';
-import * as ecc from 'tiny-secp256k1';
+import { keccak_256 } from '@noble/hashes/sha3';
 import { bech32 } from 'bech32';
+import { BIP32Factory } from 'bip32';
+import { mnemonicToSeedSync, validateMnemonic } from 'bip39';
+import * as ecc from 'tiny-secp256k1';
 
 const bip32 = BIP32Factory(ecc);
 
@@ -45,19 +45,19 @@ class SecureKeyManager {
     this._addressCache = {
       evm: {
         address: evmAddress,
-        publicKey: '0x' + Buffer.from(publicKeyBytesCompressed).toString('hex')
+        publicKey: '0x' + Buffer.from(publicKeyBytesCompressed).toString('hex'),
       },
       cosmos: {
         address: cosmosAddress,
-        publicKey: Buffer.from(publicKeyBytesCompressed).toString('hex')
-      }
+        publicKey: Buffer.from(publicKeyBytesCompressed).toString('hex'),
+      },
     };
 
     this._keys.set('privateKey', privateKeyBytes);
     this._keys.set('publicKey', publicKeyBytesCompressed);
-    
+
     this._initialized = true;
-    
+
     console.log(' SecureKeyManager initialized successfully');
     console.log(' EVM Address:', evmAddress);
     console.log(' Cosmos Address:', cosmosAddress);
@@ -115,7 +115,7 @@ class SecureKeyManager {
 
   validateAddresses(expectedAddresses) {
     this._ensureInitialized();
-    
+
     const current = this._addressCache;
     const errors = [];
 
@@ -128,7 +128,9 @@ class SecureKeyManager {
     }
 
     if (expectedCosmos && expectedCosmos !== current.cosmos.address) {
-      errors.push(`Cosmos address mismatch: expected ${expectedCosmos}, got ${current.cosmos.address}`);
+      errors.push(
+        `Cosmos address mismatch: expected ${expectedCosmos}, got ${current.cosmos.address}`
+      );
     }
 
     if (errors.length > 0) {
@@ -144,10 +146,10 @@ class SecureKeyManager {
       const privateKey = this._keys.get('privateKey');
       privateKey.fill(0);
     }
-    
+
     this._keys.clear();
     this._initialized = false;
-    
+
     console.log(' Sensitive key data cleared from memory');
   }
 

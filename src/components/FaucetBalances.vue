@@ -183,38 +183,38 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
-import { useConfig } from '../composables/useConfig'
+import { computed, onMounted, ref, watch } from 'vue';
+import { useConfig } from '../composables/useConfig';
 
 const props = defineProps({
   address: String,
   isValid: Boolean,
-  hoveringWallet: String
-})
+  hoveringWallet: String,
+});
 
-const { config } = useConfig()
-const tokenBalances = ref({})
-const loadingBalances = ref(false)
-const copiedAddress = ref('')
-const expandedTokens = ref({})
+const { config } = useConfig();
+const tokenBalances = ref({});
+const loadingBalances = ref(false);
+const copiedAddress = ref('');
+const expandedTokens = ref({});
 
 const addressType = computed(() => {
-  if (!props.address) return ''
-  return props.address.startsWith('cosmos') ? 'cosmos' : 'evm'
-})
+  if (!props.address) return '';
+  return props.address.startsWith('cosmos') ? 'cosmos' : 'evm';
+});
 
 // Show appropriate tokens based on address type
 const allTokens = computed(() => {
-  if (!config.value || !config.value.tokens) return []
-  
-  let tokens = [...config.value.tokens]
-  
+  if (!config.value || !config.value.tokens) return [];
+
+  let tokens = [...config.value.tokens];
+
   if (addressType.value === 'evm') {
     // For EVM addresses: hide native ATOM, show WATOM instead
-    tokens = tokens.filter(t => t.denom !== 'uatom')
-    
+    tokens = tokens.filter((t) => t.denom !== 'uatom');
+
     // Find native ATOM token to create WATOM display
-    const atomToken = config.value.tokens.find(t => t.denom === 'uatom')
+    const atomToken = config.value.tokens.find((t) => t.denom === 'uatom');
     if (atomToken) {
       // Add WATOM as the EVM representation of ATOM
       tokens.push({
@@ -226,328 +226,340 @@ const allTokens = computed(() => {
         decimals: 6, // Using ATOM's native 6 decimals for cleaner display
         contract: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // Native token placeholder
         description: 'Native ATOM on EVM (direct substitute for ETH)',
-        isWrappedDisplay: true // Flag to indicate this is ATOM for EVM
-      })
+        isWrappedDisplay: true, // Flag to indicate this is ATOM for EVM
+      });
     }
   }
-  
-  return tokens
-})
+
+  return tokens;
+});
 
 const getTokenStatus = (token) => {
-  if (!props.address || !props.isValid) return 'neutral'
-  
+  if (!props.address || !props.isValid) return 'neutral';
+
   // WATOM display token always shows the same status as ATOM
   if (token.isWrappedDisplay) {
-    const atomToken = config.value.tokens.find(t => t.denom === 'uatom')
-    if (atomToken) return getTokenStatus(atomToken)
+    const atomToken = config.value.tokens.find((t) => t.denom === 'uatom');
+    if (atomToken) return getTokenStatus(atomToken);
   }
-  
+
   // Check if token is compatible with address type
-  const isCompatible = isTokenCompatible(token)
-  if (!isCompatible) return 'incompatible'
-  
+  const isCompatible = isTokenCompatible(token);
+  if (!isCompatible) return 'incompatible';
+
   // If we're still loading balances, show neutral state
-  if (loadingBalances.value) return 'neutral'
-  
+  if (loadingBalances.value) return 'neutral';
+
   // Check if user already has max amount
   // Normalize denom to lowercase for consistent lookup
-  const balance = tokenBalances.value[token.denom.toLowerCase()]
+  const balance = tokenBalances.value[token.denom.toLowerCase()];
   // Use balance's target_amount if available, otherwise fall back to token config
-  const targetAmount = balance?.target_amount 
-    ? parseFloat(balance.target_amount) 
-    : parseFloat(token.target_balance || token.amount || 0)
-  
+  const targetAmount = balance?.target_amount
+    ? Number.parseFloat(balance.target_amount)
+    : Number.parseFloat(token.target_balance || token.amount || 0);
+
   // Always check current balance, even if not in tokenBalances
   if (balance) {
     // Handle both 'amount' and 'current_amount' fields for compatibility
-    const currentAmount = parseFloat(balance.current_amount || balance.amount || 0)
-    if (currentAmount >= targetAmount) return 'maxed'
+    const currentAmount = Number.parseFloat(balance.current_amount || balance.amount || 0);
+    if (currentAmount >= targetAmount) return 'maxed';
   }
-  
-  return 'available'
-}
+
+  return 'available';
+};
 
 const isTokenCompatible = (token) => {
-  if (!addressType.value) return true
-  
+  if (!addressType.value) return true;
+
   if (addressType.value === 'cosmos') {
     // Cosmos addresses can only receive native tokens (not ERC20)
     // Native tokens are identified by not having an ERC20 contract or having special placeholder addresses
-    return !token.contract || 
-           token.contract === '0x0000000000000000000000000000000000000000' ||
-           token.contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
+    return (
+      !token.contract ||
+      token.contract === '0x0000000000000000000000000000000000000000' ||
+      token.contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
+    );
   } else if (addressType.value === 'evm') {
     // EVM addresses can only receive:
     // 1. ERC20 tokens (have a real contract address)
     // 2. Native ATOM (special case, shown as WATOM)
     // But NOT IBC tokens (they don't have ERC20 interfaces yet)
-    
+
     // IBC tokens are identified by having an ibc/ denom
     if (token.denom && token.denom.startsWith('ibc/')) {
-      return false
+      return false;
     }
-    
+
     // Allow native ATOM and tokens with real ERC20 contracts
-    return true
+    return true;
   }
-  
-  return false
-}
+
+  return false;
+};
 
 const getTokenStatusClass = (token) => {
-  const status = getTokenStatus(token)
-  const claimPercentage = getClaimPercentage(token)
-  
+  const status = getTokenStatus(token);
+  const claimPercentage = getClaimPercentage(token);
+
   // Color coding based on percentage of max that will be sent:
   // Green: 75-100% of max amount
-  // Yellow: 25-74% of max amount  
+  // Yellow: 25-74% of max amount
   // Orange: 1-24% of max amount
   // Red: 0% (already maxed out)
   // Gray: incompatible or no address
-  
+
   if (status === 'incompatible' || status === 'neutral' || !props.address) {
-    return { 'status-neutral': true }
+    return { 'status-neutral': true };
   }
-  
+
   if (status === 'maxed' || claimPercentage === 0) {
-    return { 'status-maxed': true }
+    return { 'status-maxed': true };
   }
-  
+
   if (claimPercentage >= 75) {
-    return { 'status-available': true }
+    return { 'status-available': true };
   }
-  
+
   if (claimPercentage >= 25) {
-    return { 'status-partial': true }
+    return { 'status-partial': true };
   }
-  
+
   // Less than 25% - orange/warning color
-  return { 'status-minimal': true }
-}
+  return { 'status-minimal': true };
+};
 
 const isNativeToken = (token) => {
-  return token.denom === 'uatom' && (!token.contract || token.contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE')
-}
+  return (
+    token.denom === 'uatom' &&
+    (!token.contract || token.contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE')
+  );
+};
 
 const getTokenSymbol = (token) => {
   // Always show the token's actual symbol
   // The WATOM conversion happens on the backend for EVM addresses
-  return token.symbol || token.denom
-}
+  return token.symbol || token.denom;
+};
 
 const getTokenName = (token) => {
   // Show actual token name - backend handles WATOM conversion
-  return token.name || ''
-}
+  return token.name || '';
+};
 
 const getTokenType = (token) => {
-  if (token.type === 'wrapped') return 'Wrapped'
-  if (token.type === 'ibc') return 'IBC'
-  if (token.type === 'erc20') return 'ERC20'
-  if (token.denom === 'uatom') return 'Native'
-  if (token.type === 'native') return 'Native'
-  return token.type || 'Unknown'
-}
+  if (token.type === 'wrapped') return 'Wrapped';
+  if (token.type === 'ibc') return 'IBC';
+  if (token.type === 'erc20') return 'ERC20';
+  if (token.denom === 'uatom') return 'Native';
+  if (token.type === 'native') return 'Native';
+  return token.type || 'Unknown';
+};
 
 const getTokenTypeBadgeClass = (token) => {
-  const type = getTokenType(token)
-  if (type === 'Native') return 'badge-native'
-  if (type === 'Wrapped') return 'badge-wrapped'
-  if (type === 'ERC20') return 'badge-erc20'
-  if (type === 'IBC') return 'badge-ibc'
-  return 'badge-default'
-}
+  const type = getTokenType(token);
+  if (type === 'Native') return 'badge-native';
+  if (type === 'Wrapped') return 'badge-wrapped';
+  if (type === 'ERC20') return 'badge-erc20';
+  if (type === 'IBC') return 'badge-ibc';
+  return 'badge-default';
+};
 
 const formatContractAddress = (address) => {
-  if (!address) return ''
-  return `${address.slice(0, 6)}...${address.slice(-4)}`
-}
+  if (!address) return '';
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+};
 
 const formatIbcDenom = (denom) => {
-  if (!denom) return ''
-  const parts = denom.split('/')
+  if (!denom) return '';
+  const parts = denom.split('/');
   if (parts.length === 2 && parts[1].length > 8) {
-    return `${parts[0]}/...${parts[1].slice(-4)}`
+    return `${parts[0]}/...${parts[1].slice(-4)}`;
   }
-  return denom
-}
+  return denom;
+};
 
 const formatTokenAmount = (token) => {
-  const amount = token.target_balance || token.amount || 0
-  const formatted = formatBalance(amount, token.decimals || 0)
-  const symbol = getTokenSymbol(token)
-  return `${formatted} ${symbol}`
-}
+  const amount = token.target_balance || token.amount || 0;
+  const formatted = formatBalance(amount, token.decimals || 0);
+  const symbol = getTokenSymbol(token);
+  return `${formatted} ${symbol}`;
+};
 
 const getClaimPercentage = (token) => {
   // If loading or no address, assume full amount
-  if (loadingBalances.value || !props.address || !props.isValid) return 100
-  
-  const claimable = getClaimableAmountRaw(token)
-  const balance = tokenBalances.value[token.denom.toLowerCase()]
+  if (loadingBalances.value || !props.address || !props.isValid) return 100;
+
+  const claimable = getClaimableAmountRaw(token);
+  const balance = tokenBalances.value[token.denom.toLowerCase()];
   // Use balance's target_amount if available, otherwise fall back to token config
-  const target = balance?.target_amount 
-    ? parseFloat(balance.target_amount)
-    : parseFloat(token.target_balance || token.amount || 0)
-  if (!target) return 0
-  return (claimable / target) * 100
-}
+  const target = balance?.target_amount
+    ? Number.parseFloat(balance.target_amount)
+    : Number.parseFloat(token.target_balance || token.amount || 0);
+  if (!target) return 0;
+  return (claimable / target) * 100;
+};
 
 const getClaimableAmountRaw = (token) => {
-  const balance = tokenBalances.value[token.denom.toLowerCase()]
+  const balance = tokenBalances.value[token.denom.toLowerCase()];
   // Use balance's target_amount if available, otherwise fall back to token config
-  const target = balance?.target_amount 
-    ? parseFloat(balance.target_amount)
-    : parseFloat(token.target_balance || token.amount || 0)
-  
-  if (!balance) return target
-  
+  const target = balance?.target_amount
+    ? Number.parseFloat(balance.target_amount)
+    : Number.parseFloat(token.target_balance || token.amount || 0);
+
+  if (!balance) return target;
+
   // Handle both 'amount' and 'current_amount' fields for compatibility
-  const current = parseFloat(balance.current_amount || balance.amount || 0)
-  const remaining = target - current
-  
-  return Math.max(0, remaining)
-}
+  const current = Number.parseFloat(balance.current_amount || balance.amount || 0);
+  const remaining = target - current;
+
+  return Math.max(0, remaining);
+};
 
 const formatClaimableAmount = (token) => {
-  const claimable = getClaimableAmountRaw(token)
-  const target = parseFloat(token.target_balance || token.amount || 0)
-  const formattedClaimable = formatBalance(claimable, token.decimals || 0)
-  const formattedTarget = formatBalance(target, token.decimals || 0)
-  const symbol = getTokenSymbol(token)
-  
+  const claimable = getClaimableAmountRaw(token);
+  const target = Number.parseFloat(token.target_balance || token.amount || 0);
+  const formattedClaimable = formatBalance(claimable, token.decimals || 0);
+  const formattedTarget = formatBalance(target, token.decimals || 0);
+  const symbol = getTokenSymbol(token);
+
   // If we're sending the full amount, just show that
   if (claimable === target) {
-    return `${formattedClaimable} ${symbol}`
+    return `${formattedClaimable} ${symbol}`;
   }
-  
+
   // If we're sending partial or none, show as "actual/max"
-  return `${formattedClaimable}/${formattedTarget} ${symbol}`
-}
+  return `${formattedClaimable}/${formattedTarget} ${symbol}`;
+};
 
 const getHoverClass = (token) => {
-  if (!props.hoveringWallet) return ''
-  
+  if (!props.hoveringWallet) return '';
+
   // Check if this token would be eligible for the hovering wallet
-  const hoveringAddressType = props.hoveringWallet.startsWith('cosmos') ? 'cosmos' : 'evm'
-  
+  const hoveringAddressType = props.hoveringWallet.startsWith('cosmos') ? 'cosmos' : 'evm';
+
   // Check compatibility
   if (hoveringAddressType === 'cosmos') {
     // Cosmos addresses can only receive native tokens
-    const isCompatible = !token.contract || 
-                        token.contract === '0x0000000000000000000000000000000000000000' ||
-                        token.contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
-    return isCompatible ? 'token-hover-eligible' : ''
+    const isCompatible =
+      !token.contract ||
+      token.contract === '0x0000000000000000000000000000000000000000' ||
+      token.contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
+    return isCompatible ? 'token-hover-eligible' : '';
   } else if (hoveringAddressType === 'evm') {
     // EVM addresses cannot receive IBC tokens yet
     if (token.denom && token.denom.startsWith('ibc/')) {
-      return ''
+      return '';
     }
-    return 'token-hover-eligible'
+    return 'token-hover-eligible';
   }
-  
-  return ''
-}
+
+  return '';
+};
 
 const getIncompatibleReason = (token) => {
-  if (addressType.value === 'cosmos' && token.contract && 
-      token.contract !== '0x0000000000000000000000000000000000000000' && 
-      token.contract !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
-    return 'ERC20 tokens require EVM address'
+  if (
+    addressType.value === 'cosmos' &&
+    token.contract &&
+    token.contract !== '0x0000000000000000000000000000000000000000' &&
+    token.contract !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
+  ) {
+    return 'ERC20 tokens require EVM address';
   }
-  
+
   if (addressType.value === 'evm' && token.denom && token.denom.startsWith('ibc/')) {
-    return 'IBC tokens not yet available for EVM wallets'
+    return 'IBC tokens not yet available for EVM wallets';
   }
-  
-  return `Not available for ${addressType.value}`
-}
+
+  return `Not available for ${addressType.value}`;
+};
 
 const formatBalance = (amount, decimals = 0) => {
-  if (!amount) return '0'
-  
+  if (!amount) return '0';
+
   try {
-    const divisor = Math.pow(10, decimals)
-    const value = parseFloat(amount) / divisor
-    
-    if (value === 0) return '0'
-    if (value < 0.000001) return value.toExponential(2)
-    if (value < 1) return value.toFixed(6).replace(/\.?0+$/, '')
-    if (value < 1000) return value.toFixed(2).replace(/\.?0+$/, '')
-    
-    return value.toLocaleString('en-US', { maximumFractionDigits: 2 })
+    const divisor = 10 ** decimals;
+    const value = Number.parseFloat(amount) / divisor;
+
+    if (value === 0) return '0';
+    if (value < 0.000001) return value.toExponential(2);
+    if (value < 1) return value.toFixed(6).replace(/\.?0+$/, '');
+    if (value < 1000) return value.toFixed(2).replace(/\.?0+$/, '');
+
+    return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
   } catch (error) {
-    console.error('Error formatting balance:', error)
-    return '0'
+    console.error('Error formatting balance:', error);
+    return '0';
   }
-}
+};
 
 const toggleTokenExpansion = (denom) => {
-  expandedTokens.value[denom] = !expandedTokens.value[denom]
-}
+  expandedTokens.value[denom] = !expandedTokens.value[denom];
+};
 
 const copyToClipboard = async (text) => {
   try {
-    await navigator.clipboard.writeText(text)
-    copiedAddress.value = text
+    await navigator.clipboard.writeText(text);
+    copiedAddress.value = text;
     setTimeout(() => {
-      copiedAddress.value = ''
-    }, 2000)
+      copiedAddress.value = '';
+    }, 2000);
   } catch (err) {
-    console.error('Failed to copy:', err)
+    console.error('Failed to copy:', err);
   }
-}
+};
 
 const fetchBalances = async () => {
-  if (!props.address || !props.isValid || !addressType.value) return
-  
-  loadingBalances.value = true
-  tokenBalances.value = {}
-  
+  if (!props.address || !props.isValid || !addressType.value) return;
+
+  loadingBalances.value = true;
+  tokenBalances.value = {};
+
   try {
-    const response = await fetch(`/balance/${addressType.value}?address=${props.address}`)
-    const data = await response.json()
-    
+    const response = await fetch(`/balance/${addressType.value}?address=${props.address}`);
+    const data = await response.json();
+
     if (data.balances) {
       // Create a map of balances by denom
-      data.balances.forEach(balance => {
+      data.balances.forEach((balance) => {
         // Normalize denom to lowercase for consistent lookup
-        const normalizedDenom = balance.denom.toLowerCase()
-        
+        const normalizedDenom = balance.denom.toLowerCase();
+
         // Special handling for WATOM -> uatom mapping
         if (normalizedDenom === 'watom') {
-          tokenBalances.value['uatom'] = balance
+          tokenBalances.value['uatom'] = balance;
         } else {
-          tokenBalances.value[normalizedDenom] = balance
+          tokenBalances.value[normalizedDenom] = balance;
         }
-      })
-      
+      });
+
       // Debug log to verify balance loading
-      console.log('Loaded token balances:', tokenBalances.value)
+      console.log('Loaded token balances:', tokenBalances.value);
     }
   } catch (error) {
-    console.error('Error fetching balances:', error)
+    console.error('Error fetching balances:', error);
   } finally {
-    loadingBalances.value = false
+    loadingBalances.value = false;
   }
-}
+};
 
 // Watch for address changes
-watch(() => props.address, () => {
-  if (props.address && props.isValid) {
-    fetchBalances()
-  } else {
-    tokenBalances.value = {}
+watch(
+  () => props.address,
+  () => {
+    if (props.address && props.isValid) {
+      fetchBalances();
+    } else {
+      tokenBalances.value = {};
+    }
   }
-})
+);
 
 // Fetch balances on mount if address is already provided
 onMounted(() => {
   if (props.address && props.isValid) {
-    fetchBalances()
+    fetchBalances();
   }
-})
+});
 </script>
 
 <style scoped>

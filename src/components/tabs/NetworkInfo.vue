@@ -115,107 +115,107 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useConfig } from '../../composables/useConfig'
+import { onMounted, ref } from 'vue';
+import { useConfig } from '../../composables/useConfig';
 
-const { networkConfig, config } = useConfig()
-const ibcTokens = ref([])
-const loadingIBC = ref(false)
-const copiedText = ref('')
-const activeNetworkTab = ref('cosmos')
+const { networkConfig, config } = useConfig();
+const ibcTokens = ref([]);
+const loadingIBC = ref(false);
+const copiedText = ref('');
+const activeNetworkTab = ref('cosmos');
 
 const formatAddress = (address) => {
-  if (!address) return ''
-  return `${address.slice(0, 6)}...${address.slice(-4)}`
-}
+  if (!address) return '';
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+};
 
 const formatIBCDenom = (denom) => {
-  if (!denom) return ''
-  const parts = denom.split('/')
+  if (!denom) return '';
+  const parts = denom.split('/');
   if (parts.length === 2 && parts[1].length > 8) {
-    return `${parts[0]}/...${parts[1].slice(-6)}`
+    return `${parts[0]}/...${parts[1].slice(-6)}`;
   }
-  return denom
-}
+  return denom;
+};
 
 const formatBalance = (amount, decimals = 0) => {
-  if (!amount || amount === '0') return '0'
-  
+  if (!amount || amount === '0') return '0';
+
   try {
-    const divisor = Math.pow(10, decimals)
-    const value = parseFloat(amount) / divisor
-    
-    if (value === 0) return '0'
-    if (value < 0.000001) return value.toExponential(2)
-    if (value < 1) return value.toFixed(6).replace(/\.?0+$/, '')
-    if (value < 1000) return value.toFixed(2).replace(/\.?0+$/, '')
-    
-    return value.toLocaleString('en-US', { maximumFractionDigits: 2 })
+    const divisor = 10 ** decimals;
+    const value = Number.parseFloat(amount) / divisor;
+
+    if (value === 0) return '0';
+    if (value < 0.000001) return value.toExponential(2);
+    if (value < 1) return value.toFixed(6).replace(/\.?0+$/, '');
+    if (value < 1000) return value.toFixed(2).replace(/\.?0+$/, '');
+
+    return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
   } catch (error) {
-    console.error('Error formatting balance:', error)
-    return '0'
+    console.error('Error formatting balance:', error);
+    return '0';
   }
-}
+};
 
 const copyToClipboard = async (text) => {
-  if (!text) return
-  
+  if (!text) return;
+
   try {
-    await navigator.clipboard.writeText(text)
-    copiedText.value = text
+    await navigator.clipboard.writeText(text);
+    copiedText.value = text;
     setTimeout(() => {
-      copiedText.value = ''
-    }, 2000)
+      copiedText.value = '';
+    }, 2000);
   } catch (err) {
-    console.error('Failed to copy:', err)
+    console.error('Failed to copy:', err);
   }
-}
+};
 
 const fetchIBCBalances = async () => {
-  if (!networkConfig.value.faucetAddresses?.cosmos || !config.value) return
-  
-  loadingIBC.value = true
+  if (!networkConfig.value.faucetAddresses?.cosmos || !config.value) return;
+
+  loadingIBC.value = true;
   try {
-    const restEndpoint = config.value.blockchain.endpoints.rest_endpoint
-    const cosmosAddress = networkConfig.value.faucetAddresses.cosmos
-    
-    const response = await fetch(`${restEndpoint}/cosmos/bank/v1beta1/balances/${cosmosAddress}`)
-    const data = await response.json()
-    
+    const restEndpoint = config.value.blockchain.endpoints.rest_endpoint;
+    const cosmosAddress = networkConfig.value.faucetAddresses.cosmos;
+
+    const response = await fetch(`${restEndpoint}/cosmos/bank/v1beta1/balances/${cosmosAddress}`);
+    const data = await response.json();
+
     if (data.balances && Array.isArray(data.balances)) {
       // Filter for IBC tokens
-      const ibcBalances = data.balances.filter(b => b.denom.startsWith('ibc/'))
-      
+      const ibcBalances = data.balances.filter((b) => b.denom.startsWith('ibc/'));
+
       // Try to match with known IBC tokens from config
-      const tokens = config.value.blockchain.tx.amounts || []
-      
-      ibcTokens.value = ibcBalances.map(balance => {
+      const tokens = config.value.blockchain.tx.amounts || [];
+
+      ibcTokens.value = ibcBalances.map((balance) => {
         // Find matching token config
-        const tokenConfig = tokens.find(t => t.denom === balance.denom)
-        
+        const tokenConfig = tokens.find((t) => t.denom === balance.denom);
+
         return {
           denom: balance.denom,
           amount: balance.amount,
           symbol: tokenConfig?.symbol || 'Unknown',
           name: tokenConfig?.name || 'IBC Token',
-          decimals: tokenConfig?.decimals || 6
-        }
-      })
+          decimals: tokenConfig?.decimals || 6,
+        };
+      });
     }
   } catch (error) {
-    console.error('Error fetching IBC balances:', error)
+    console.error('Error fetching IBC balances:', error);
   } finally {
-    loadingIBC.value = false
+    loadingIBC.value = false;
   }
-}
+};
 
 const refreshIBCBalances = () => {
-  fetchIBCBalances()
-}
+  fetchIBCBalances();
+};
 
 onMounted(() => {
-  fetchIBCBalances()
-})
+  fetchIBCBalances();
+});
 </script>
 
 <style scoped>

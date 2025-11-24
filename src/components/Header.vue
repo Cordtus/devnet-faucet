@@ -70,13 +70,13 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useConfig } from '../composables/useConfig'
+import { computed } from 'vue';
+import { useConfig } from '../composables/useConfig';
 
-const { config } = useConfig()
-const projectName = computed(() => config.value?.project?.name || 'Cosmos EVM Faucet')
+const { config } = useConfig();
+const projectName = computed(() => config.value?.project?.name || 'Cosmos EVM Faucet');
 // Version will be updated with each deployment
-const version = '1.1.0'
+const version = '1.1.0';
 </script>
 
 <style scoped>

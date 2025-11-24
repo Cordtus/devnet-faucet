@@ -1,66 +1,67 @@
 import 'dotenv/config';
-import express from 'express'
-import cors from 'cors'
-import { readFileSync } from 'fs'
-import { fileURLToPath } from 'url'
-import { dirname, join } from 'path'
-import path from 'path';
-import fs from 'fs';
-import fetch from 'node-fetch';
-import { Wallet, JsonRpcProvider, Contract, } from 'ethers'
-import { bech32 } from 'bech32';
-
-import { DirectSecp256k1Wallet, decodePubkey, makeAuthInfoBytes, makeSignDoc } from "@cosmjs/proto-signing";
-import { accountFromAny, SigningStargateClient } from "@cosmjs/stargate";
 import { pathToString } from '@cosmjs/crypto';
-import { toHex, toBase64, } from '@cosmjs/encoding';
-import { TxRaw, SignDoc, TxBody } from "cosmjs-types/cosmos/tx/v1beta1/tx.js";
-import { Any } from "cosmjs-types/google/protobuf/any.js";
-import { MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx.js";
-import Long from "long";
-
+import { toBase64, toHex } from '@cosmjs/encoding';
+import {
+  DirectSecp256k1Wallet,
+  decodePubkey,
+  makeAuthInfoBytes,
+  makeSignDoc,
+} from '@cosmjs/proto-signing';
+import { accountFromAny, SigningStargateClient } from '@cosmjs/stargate';
+import { secp256k1 } from '@noble/curves/secp256k1';
 // Noble crypto imports for key derivation
 import { keccak_256 } from '@noble/hashes/sha3';
-import { secp256k1 } from '@noble/curves/secp256k1';
-import { mnemonicToSeedSync, validateMnemonic } from 'bip39';
+import { bech32 } from 'bech32';
 import { BIP32Factory } from 'bip32';
+import { mnemonicToSeedSync, validateMnemonic } from 'bip39';
+import cors from 'cors';
+import { MsgSend } from 'cosmjs-types/cosmos/bank/v1beta1/tx.js';
+import { SignDoc, TxBody, TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx.js';
+import { Any } from 'cosmjs-types/google/protobuf/any.js';
+import { Contract, JsonRpcProvider, Wallet } from 'ethers';
+import express from 'express';
+import fs, { readFileSync } from 'fs';
+import Long from 'long';
+import fetch from 'node-fetch';
+import path, { dirname, join } from 'path';
 import * as ecc from 'tiny-secp256k1';
+import { fileURLToPath } from 'url';
 
 import conf, {
-  initializeSecureKeys,
+  getCosmosAddress,
+  getEvmAddress,
+  getEvmPublicKey,
   getPrivateKey,
   getPrivateKeyBytes,
   getPublicKeyBytes,
-  getEvmAddress,
-  getCosmosAddress,
-  getEvmPublicKey,
-  validateDerivedAddresses
-} from './config.js'
-import logRotation from './src/logRotation.js'
+  initializeSecureKeys,
+  validateDerivedAddresses,
+} from './config.js';
+import logRotation from './src/logRotation.js';
 
-
-const app = express()
-const chainConf = conf.blockchain
+const app = express();
+const chainConf = conf.blockchain;
 
 // Import checker and token allowance tracker
-import { FrequencyChecker } from './checker.js'
-import { TokenAllowanceTracker } from './tokenAllowance.js'
-const checker = new FrequencyChecker(conf)
-const allowanceTracker = new TokenAllowanceTracker(conf)
+import { FrequencyChecker } from './checker.js';
+import { TokenAllowanceTracker } from './tokenAllowance.js';
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+const checker = new FrequencyChecker(conf);
+const allowanceTracker = new TokenAllowanceTracker(conf);
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Update CORS to only allow certain domains in production
 const corsOptions = {
-  origin: function (origin, callback) {
+  origin: (origin, callback) => {
     const allowedOrigins = [
       'https://faucet.cosmos-evm.com',
       'https://cosmos-evm.com',
       'https://faucet.basementnodes.ca',
       'https://devnet-faucet.fly.dev',
       'http://localhost:3000',
-      'http://localhost:8088'
+      'http://localhost:8088',
     ];
 
     // Allow requests with no origin (like mobile apps or curl)
@@ -93,14 +94,14 @@ const corsOptions = {
   },
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  credentials: true,
 };
 
 // Serve static files in production mode - MUST come BEFORE CORS and other middleware
 if (process.env.NODE_ENV === 'production') {
   const staticPath = path.join(__dirname, 'dist');
   console.log('[STATIC] Serving static files from:', staticPath);
-  
+
   // Add debug middleware to log static file requests
   app.use((req, res, next) => {
     if (req.path.startsWith('/assets/')) {
@@ -108,21 +109,23 @@ if (process.env.NODE_ENV === 'production') {
     }
     next();
   });
-  
-  app.use(express.static(staticPath, {
-    maxAge: '1h',
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.js')) {
-        res.set('Content-Type', 'application/javascript');
-      } else if (filePath.endsWith('.css')) {
-        res.set('Content-Type', 'text/css');
-      }
-    }
-  }));
+
+  app.use(
+    express.static(staticPath, {
+      maxAge: '1h',
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.js')) {
+          res.set('Content-Type', 'application/javascript');
+        } else if (filePath.endsWith('.css')) {
+          res.set('Content-Type', 'text/css');
+        }
+      },
+    })
+  );
 }
 
 app.use(cors(corsOptions));
-app.use(express.json())
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Testing mode flag
@@ -137,23 +140,21 @@ if (TESTING_MODE) {
 
 // Global ERC20 ABIs
 const ERC20_BASE_ABI = [
-  "function name() view returns (string)",
-  "function symbol() view returns (string)",
-  "function decimals() view returns (uint8)",
-  "function totalSupply() view returns (uint256)",
-  "function balanceOf(address owner) view returns (uint256)",
-  "function transfer(address to, uint256 amount) returns (bool)",
-  "function allowance(address owner, address spender) view returns (uint256)",
-  "function approve(address spender, uint256 amount) returns (bool)"
+  'function name() view returns (string)',
+  'function symbol() view returns (string)',
+  'function decimals() view returns (uint8)',
+  'function totalSupply() view returns (uint256)',
+  'function balanceOf(address owner) view returns (uint256)',
+  'function transfer(address to, uint256 amount) returns (bool)',
+  'function allowance(address owner, address spender) view returns (uint256)',
+  'function approve(address spender, uint256 amount) returns (bool)',
 ];
 
-const ERC20_OWNABLE_ABI = [
-  "function owner() view returns (address)"
-];
+const ERC20_OWNABLE_ABI = ['function owner() view returns (address)'];
 
 const ERC20_APPROVAL_ABI = [
   ...ERC20_BASE_ABI,
-  "event Approval(address indexed owner, address indexed spender, uint256 value)"
+  'event Approval(address indexed owner, address indexed spender, uint256 value)',
 ];
 
 // Function to detect address type
@@ -246,7 +247,7 @@ async function checkAllowance(tokenAddress, ownerAddress, spenderAddress) {
     const [symbol, decimals, allowance] = await Promise.all([
       tokenContract.symbol(),
       tokenContract.decimals(),
-      tokenContract.allowance(ownerAddress, spenderAddress)
+      tokenContract.allowance(ownerAddress, spenderAddress),
     ]);
 
     return {
@@ -254,7 +255,7 @@ async function checkAllowance(tokenAddress, ownerAddress, spenderAddress) {
       symbol,
       decimals: Number(decimals),
       allowance: allowance.toString(),
-      isApproved: allowance > 0n
+      isApproved: allowance > 0n,
     };
   } catch (error) {
     console.error(`Error checking allowance for ${tokenAddress}:`, error);
@@ -264,7 +265,7 @@ async function checkAllowance(tokenAddress, ownerAddress, spenderAddress) {
       decimals: 18,
       allowance: '0',
       isApproved: false,
-      error: error.message
+      error: error.message,
     };
   }
 }
@@ -281,10 +282,11 @@ async function checkAllTokenApprovals() {
   const results = [];
 
   for (const token of chainConf.tx.amounts) {
-    if (token.erc20_contract &&
-        token.erc20_contract !== "0x0000000000000000000000000000000000000000" &&
-        token.erc20_contract !== "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE") {
-
+    if (
+      token.erc20_contract &&
+      token.erc20_contract !== '0x0000000000000000000000000000000000000000' &&
+      token.erc20_contract !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
+    ) {
       const allowanceInfo = await checkAllowance(
         token.erc20_contract,
         evmAddress,
@@ -294,7 +296,7 @@ async function checkAllTokenApprovals() {
       results.push({
         ...allowanceInfo,
         denom: token.denom,
-        required_amount: token.target_balance
+        required_amount: token.target_balance,
       });
     }
   }
@@ -316,10 +318,11 @@ async function setupTokenApprovals() {
   let allApproved = true;
 
   for (const token of chainConf.tx.amounts) {
-    if (token.erc20_contract &&
-        token.erc20_contract !== "0x0000000000000000000000000000000000000000" &&
-        token.erc20_contract !== "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE") {
-
+    if (
+      token.erc20_contract &&
+      token.erc20_contract !== '0x0000000000000000000000000000000000000000' &&
+      token.erc20_contract !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
+    ) {
       const allowanceInfo = await checkAllowance(
         token.erc20_contract,
         evmAddress,
@@ -327,9 +330,9 @@ async function setupTokenApprovals() {
       );
 
       // Calculate needed approval for 5 consecutive transfers
-      const transferAmount = BigInt(token.amount || "0");
+      const transferAmount = BigInt(token.amount || '0');
       const neededApproval = transferAmount * 5n;
-      const currentAllowance = BigInt(allowanceInfo.allowance || "0");
+      const currentAllowance = BigInt(allowanceInfo.allowance || '0');
 
       if (currentAllowance < neededApproval) {
         console.log(`    Token ${token.denom} (${allowanceInfo.symbol}) needs approval`);
@@ -344,13 +347,17 @@ async function setupTokenApprovals() {
         );
 
         if (approved) {
-          console.log(`   Success: Token ${token.denom} (${allowanceInfo.symbol}) approved for ${neededApproval}`);
+          console.log(
+            `   Success: Token ${token.denom} (${allowanceInfo.symbol}) approved for ${neededApproval}`
+          );
         } else {
           console.log(`   Failed: Could not approve token ${token.denom}`);
           allApproved = false;
         }
       } else {
-        console.log(`   Success: Token ${token.denom} (${allowanceInfo.symbol}) has sufficient allowance`);
+        console.log(
+          `   Success: Token ${token.denom} (${allowanceInfo.symbol}) has sufficient allowance`
+        );
         console.log(`     Current: ${currentAllowance}, Needed: ${neededApproval}`);
       }
     }
@@ -370,20 +377,23 @@ function startApprovalMonitoring() {
   checkAndTopUpApprovals();
 
   // Then check every 10 minutes
-  approvalMonitorInterval = setInterval(async () => {
-    console.log('\n[APPROVAL CHECK] Running periodic approval check...');
-    await checkAndTopUpApprovals();
-    console.log('[APPROVAL CHECK] Periodic check complete');
-  }, 10 * 60 * 1000); // 10 minutes
+  approvalMonitorInterval = setInterval(
+    async () => {
+      console.log('\n[APPROVAL CHECK] Running periodic approval check...');
+      await checkAndTopUpApprovals();
+      console.log('[APPROVAL CHECK] Periodic check complete');
+    },
+    10 * 60 * 1000
+  ); // 10 minutes
 }
 
 async function checkAndReportApprovals() {
   const approvals = await checkAllTokenApprovals();
-  const needsApproval = approvals.filter(a => !a.isApproved);
+  const needsApproval = approvals.filter((a) => !a.isApproved);
 
   if (needsApproval.length > 0) {
     console.log(`\n  WARNING: ${needsApproval.length} tokens need approval:`);
-    needsApproval.forEach(token => {
+    needsApproval.forEach((token) => {
       console.log(`  - ${token.denom} (${token.symbol}): Current allowance = ${token.allowance}`);
     });
     console.log('\n  Run "yarn approval:approve-max" to fix this issue.\n');
@@ -398,10 +408,11 @@ async function checkAndTopUpApprovals() {
   let needsTopUp = false;
 
   for (const token of chainConf.tx.amounts) {
-    if (token.erc20_contract &&
-        token.erc20_contract !== "0x0000000000000000000000000000000000000000" &&
-        token.erc20_contract !== "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE") {
-
+    if (
+      token.erc20_contract &&
+      token.erc20_contract !== '0x0000000000000000000000000000000000000000' &&
+      token.erc20_contract !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
+    ) {
       const allowanceInfo = await checkAllowance(
         token.erc20_contract,
         evmAddress,
@@ -409,10 +420,10 @@ async function checkAndTopUpApprovals() {
       );
 
       // Calculate needed approval for 5 consecutive transfers
-      const transferAmount = BigInt(token.amount || "0");
+      const transferAmount = BigInt(token.amount || '0');
       const minimumNeeded = transferAmount * 2n; // Top up when below 2 transfers worth
       const targetApproval = transferAmount * 5n; // Approve for 5 transfers
-      const currentAllowance = BigInt(allowanceInfo.allowance || "0");
+      const currentAllowance = BigInt(allowanceInfo.allowance || '0');
 
       if (currentAllowance < minimumNeeded) {
         needsTopUp = true;
@@ -462,35 +473,46 @@ process.on('SIGTERM', () => {
 });
 
 // Update how we create Cosmos transactions
-async function createCosmosTransaction(fromAddress, toAddress, amounts, sequence, accountNumber, chainId) {
+async function createCosmosTransaction(
+  fromAddress,
+  toAddress,
+  amounts,
+  sequence,
+  accountNumber,
+  chainId
+) {
   try {
     const messages = [];
 
     // Create a single MsgSend with all amounts
     const msg = {
-      typeUrl: "/cosmos.bank.v1beta1.MsgSend",
+      typeUrl: '/cosmos.bank.v1beta1.MsgSend',
       value: MsgSend.fromPartial({
         fromAddress: fromAddress,
         toAddress: toAddress,
-        amount: amounts
-      })
+        amount: amounts,
+      }),
     };
     messages.push(msg);
 
     // Create the transaction body
     const txBody = TxBody.fromPartial({
-      messages: messages.map(msg => Any.fromPartial({
-        typeUrl: msg.typeUrl,
-        value: MsgSend.encode(msg.value).finish()
-      })),
-      memo: ""
+      messages: messages.map((msg) =>
+        Any.fromPartial({
+          typeUrl: msg.typeUrl,
+          value: MsgSend.encode(msg.value).finish(),
+        })
+      ),
+      memo: '',
     });
 
     // Get fee configuration
-    const feeAmount = [{
-      denom: chainConf.tx.fee.cosmos.amount[0].denom,
-      amount: chainConf.tx.fee.cosmos.amount[0].amount
-    }];
+    const feeAmount = [
+      {
+        denom: chainConf.tx.fee.cosmos.amount[0].denom,
+        amount: chainConf.tx.fee.cosmos.amount[0].amount,
+      },
+    ];
 
     const gasLimit = Long.fromString(chainConf.tx.fee.cosmos.gas);
 
@@ -507,23 +529,25 @@ async function createCosmosTransaction(fromAddress, toAddress, amounts, sequence
     const pubkeyProto = Buffer.concat([
       Buffer.from([fieldTag]), // field tag
       Buffer.from([pubkeyBytes.length]), // length of key
-      pubkeyBytes // the actual key bytes
+      pubkeyBytes, // the actual key bytes
     ]);
 
     const pubkey = Any.fromPartial({
-      typeUrl: "/cosmos.evm.crypto.v1.ethsecp256k1.PubKey",
-      value: pubkeyProto
+      typeUrl: '/cosmos.evm.crypto.v1.ethsecp256k1.PubKey',
+      value: pubkeyProto,
     });
 
     const authInfo = makeAuthInfoBytes(
-      [{
-        pubkey,
-        sequence: Long.fromNumber(sequence),
-      }],
+      [
+        {
+          pubkey,
+          sequence: Long.fromNumber(sequence),
+        },
+      ],
       feeAmount,
       gasLimit,
       undefined,
-      undefined,
+      undefined
     );
 
     // Create sign doc
@@ -552,7 +576,7 @@ async function getAccountInfo(address) {
         console.log('Account not found, using default values');
         return {
           accountNumber: 0,
-          sequence: 0
+          sequence: 0,
         };
       }
       throw new Error(`Failed to get account info: ${response.statusText}`);
@@ -568,14 +592,14 @@ async function getAccountInfo(address) {
       if (data.account['@type'].includes('EthAccount')) {
         // EthAccount type
         accountInfo = {
-          accountNumber: parseInt(data.account.base_account?.account_number || '0'),
-          sequence: parseInt(data.account.base_account?.sequence || '0')
+          accountNumber: Number.parseInt(data.account.base_account?.account_number || '0'),
+          sequence: Number.parseInt(data.account.base_account?.sequence || '0'),
         };
       } else if (data.account['@type'].includes('BaseAccount')) {
         // BaseAccount - parse directly
         accountInfo = {
-          accountNumber: parseInt(data.account.account_number || '0'),
-          sequence: parseInt(data.account.sequence || '0')
+          accountNumber: Number.parseInt(data.account.account_number || '0'),
+          sequence: Number.parseInt(data.account.sequence || '0'),
         };
       } else {
         // Try standard parsing
@@ -583,13 +607,17 @@ async function getAccountInfo(address) {
           const account = accountFromAny(data.account);
           accountInfo = {
             accountNumber: account.accountNumber,
-            sequence: account.sequence
+            sequence: account.sequence,
           };
         } catch (e) {
           // Fallback to manual parsing
           accountInfo = {
-            accountNumber: parseInt(data.account.account_number || data.account.base_account?.account_number || '0'),
-            sequence: parseInt(data.account.sequence || data.account.base_account?.sequence || '0')
+            accountNumber: Number.parseInt(
+              data.account.account_number || data.account.base_account?.account_number || '0'
+            ),
+            sequence: Number.parseInt(
+              data.account.sequence || data.account.base_account?.sequence || '0'
+            ),
           };
         }
       }
@@ -601,14 +629,14 @@ async function getAccountInfo(address) {
     // Default if no account data
     return {
       accountNumber: 0,
-      sequence: 0
+      sequence: 0,
     };
   } catch (error) {
     console.error('Error getting account info:', error);
     // Return default values for new accounts
     return {
       accountNumber: 0,
-      sequence: 0
+      sequence: 0,
     };
   }
 }
@@ -626,12 +654,12 @@ app.get('/config.json', (req, res) => {
       ids: chainConf.ids,
       sender: {
         option: {
-          prefix: chainConf.sender.option.prefix
-        }
+          prefix: chainConf.sender.option.prefix,
+        },
       },
-      limit: chainConf.limit
+      limit: chainConf.limit,
     },
-    tokens: chainConf.tx.amounts.map(token => ({
+    tokens: chainConf.tx.amounts.map((token) => ({
       denom: token.denom,
       symbol: token.symbol || token.denom.toUpperCase(),
       name: token.name || token.denom,
@@ -641,24 +669,24 @@ app.get('/config.json', (req, res) => {
       display_denom: token.display_denom || token.denom,
       description: token.description,
       type: token.type || 'token',
-      contract: token.erc20_contract
+      contract: token.erc20_contract,
     })),
     sample: {
       cosmos: 'cosmos1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqnrql8a',
-      evm: '0x0000000000000000000000000000000000000001'
+      evm: '0x0000000000000000000000000000000000000001',
     },
     network: {
       name: chainConf.name,
       faucetAddresses: {
         cosmos: getCosmosAddress(),
-        evm: getEvmAddress()
+        evm: getEvmAddress(),
       },
       evm: {
         chainId: chainConf.ids.chainId,
         chainIdHex: '0x' + chainConf.ids.chainId.toString(16),
         rpc: chainConf.endpoints.evm_endpoint,
         websocket: chainConf.endpoints.evm_websocket || '',
-        explorer: chainConf.endpoints.evm_explorer
+        explorer: chainConf.endpoints.evm_explorer,
       },
       cosmos: {
         chainId: chainConf.ids.cosmosChainId,
@@ -666,20 +694,23 @@ app.get('/config.json', (req, res) => {
         grpc: chainConf.endpoints.grpc_endpoint,
         rest: chainConf.endpoints.rest_endpoint,
         prefix: chainConf.sender.option.prefix,
-        explorer: chainConf.endpoints.cosmos_explorer
+        explorer: chainConf.endpoints.cosmos_explorer,
       },
       contracts: {
         atomicMultiSend: chainConf.contracts?.atomicMultiSend || null,
         native_token: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
         werc20_precompile: '0x0000000000000000000000000000000000000802',
         erc20_tokens: chainConf.tx.amounts
-          .filter(t => t.erc20_contract && t.erc20_contract !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE')
+          .filter(
+            (t) =>
+              t.erc20_contract && t.erc20_contract !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
+          )
           .reduce((acc, t) => {
             acc[t.symbol || t.denom] = t.erc20_contract;
             return acc;
-          }, {})
-      }
-    }
+          }, {}),
+      },
+    },
   });
 });
 
@@ -690,10 +721,10 @@ app.get('/balance/:type', async (req, res) => {
 
   console.log(`[BALANCE] Request - Type: ${type}, Address: ${address || 'faucet wallet'}`);
 
-  let balances = [];
+  const balances = [];
 
   try {
-    if(type === 'evm') {
+    if (type === 'evm') {
       // Determine which address to check - query parameter or faucet wallet
       let targetAddress;
       if (address && address.startsWith('0x')) {
@@ -707,15 +738,19 @@ app.get('/balance/:type', async (req, res) => {
 
       // Check WATOM balance using ERC20 interface for cleaner display
       try {
-        const watomContract = new Contract('0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', erc20ABI, ethProvider);
+        const watomContract = new Contract(
+          '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+          erc20ABI,
+          ethProvider
+        );
         const watomBalance = await watomContract.balanceOf(targetAddress);
         balances.push({
           denom: 'WATOM',
           amount: watomBalance.toString(),
           type: 'native',
-          decimals: 6 // Using ATOM's native 6 decimals
+          decimals: 6, // Using ATOM's native 6 decimals
         });
-      } catch(err) {
+      } catch (err) {
         console.error('Error fetching WATOM balance:', err);
         // Fallback to native balance if ERC20 interface fails
         try {
@@ -726,9 +761,9 @@ app.get('/balance/:type', async (req, res) => {
             denom: 'WATOM',
             amount: atomBalance.toString(),
             type: 'native',
-            decimals: 6
+            decimals: 6,
           });
-        } catch(fallbackErr) {
+        } catch (fallbackErr) {
           console.error('Error fetching native balance:', fallbackErr);
         }
       }
@@ -739,7 +774,11 @@ app.get('/balance/:type', async (req, res) => {
           continue;
         }
 
-        if(token.erc20_contract && token.erc20_contract !== "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" && token.erc20_contract !== "0x0000000000000000000000000000000000000000") {
+        if (
+          token.erc20_contract &&
+          token.erc20_contract !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' &&
+          token.erc20_contract !== '0x0000000000000000000000000000000000000000'
+        ) {
           try {
             const tokenContract = new Contract(token.erc20_contract, erc20ABI, ethProvider);
             const balance = await tokenContract.balanceOf(targetAddress);
@@ -748,22 +787,21 @@ app.get('/balance/:type', async (req, res) => {
               amount: balance.toString(),
               type: 'erc20',
               contract: token.erc20_contract,
-              decimals: token.decimals
+              decimals: token.decimals,
             });
-          } catch(err) {
+          } catch (err) {
             console.error(`Error fetching balance for ${token.denom}:`, err);
             balances.push({
               denom: token.denom.toUpperCase(),
-              amount: "0",
+              amount: '0',
               type: 'erc20',
               contract: token.erc20_contract,
-              decimals: token.decimals
+              decimals: token.decimals,
             });
           }
         }
       }
-
-    } else if(type === 'cosmos') {
+    } else if (type === 'cosmos') {
       // Determine which address to check - query parameter or faucet wallet
       let targetAddress;
       if (address && address.startsWith('cosmos')) {
@@ -782,40 +820,42 @@ app.get('/balance/:type', async (req, res) => {
 
       try {
         const response = await fetch(balanceUrl, {
-          signal: controller.signal
+          signal: controller.signal,
         });
         clearTimeout(timeoutId);
 
         if (response.ok) {
           const data = await response.json();
-          
+
           // Create a map for quick lookup of cosmos balances
           const cosmosBalanceMap = {};
           if (data.balances && Array.isArray(data.balances)) {
-            data.balances.forEach(balance => {
+            data.balances.forEach((balance) => {
               cosmosBalanceMap[balance.denom] = balance.amount;
             });
           }
-          
+
           // Return balances with target amounts for proper status calculation
           for (const token of chainConf.tx.amounts) {
             // Skip ERC20 tokens for Cosmos addresses
-            if (token.erc20_contract &&
-                token.erc20_contract !== "0x0000000000000000000000000000000000000000" &&
-                token.erc20_contract !== "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE") {
+            if (
+              token.erc20_contract &&
+              token.erc20_contract !== '0x0000000000000000000000000000000000000000' &&
+              token.erc20_contract !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
+            ) {
               continue;
             }
-            
-            const currentAmount = cosmosBalanceMap[token.denom] || "0";
+
+            const currentAmount = cosmosBalanceMap[token.denom] || '0';
             balances.push({
               denom: token.denom.toLowerCase(),
               current_amount: currentAmount,
               target_amount: token.target_balance,
               type: 'cosmos',
-              decimals: token.decimals || (token.denom === 'uatom' ? 6 : 0)
+              decimals: token.decimals || (token.denom === 'uatom' ? 6 : 0),
             });
           }
-          
+
           console.log(`[COSMOS] Balances for ${targetAddress}:`, balances);
         } else {
           console.error(`Cosmos balance API returned ${response.status}: ${response.statusText}`);
@@ -828,30 +868,39 @@ app.get('/balance/:type', async (req, res) => {
         }
       }
     }
-  } catch(err) {
+  } catch (err) {
     console.error('Balance fetch error:', err);
   }
   res.send({ balances, type });
-})
+});
 
 app.get('/send/:address', async (req, res) => {
   const { address } = req.params;
-  const ip = req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || req.headers['X-Forwarded-For'] || req.ip
-  console.log(`[FAUCET] Token request - Address: ${address}, IP: ${ip}`)
+  const ip =
+    req.headers['cf-connecting-ip'] ||
+    req.headers['x-real-ip'] ||
+    req.headers['X-Forwarded-For'] ||
+    req.ip;
+  console.log(`[FAUCET] Token request - Address: ${address}, IP: ${ip}`);
 
   if (address) {
     try {
       const addressType = detectAddressType(address);
 
       if (addressType === 'unknown') {
-        res.send({ result: `Address [${address}] is not supported. Must be a valid cosmos address (${conf.blockchain.sender.option.prefix}...) or hex address (0x...)` })
+        res.send({
+          result: `Address [${address}] is not supported. Must be a valid cosmos address (${conf.blockchain.sender.option.prefix}...) or hex address (0x...)`,
+        });
         return;
       }
 
-      const chainConf = conf.blockchain
+      const chainConf = conf.blockchain;
 
-      if( await checker.checkAddress(address, 'dual') && await checker.checkIp(`dual${ip}`, 'dual') ) {
-        console.log('Processing smart faucet request for', address, 'type:', addressType)
+      if (
+        (await checker.checkAddress(address, 'dual')) &&
+        (await checker.checkIp(`dual${ip}`, 'dual'))
+      ) {
+        console.log('Processing smart faucet request for', address, 'type:', addressType);
 
         // Check token allowances
         const requestedTokens = new Map();
@@ -869,9 +918,9 @@ app.get('/send/:address', async (req, res) => {
           const availableMsg = [];
           for (const [denom, amount] of allowanceCheck.available.entries()) {
             if (amount > 0n) {
-              const token = chainConf.tx.amounts.find(t => t.denom === denom);
+              const token = chainConf.tx.amounts.find((t) => t.denom === denom);
               const decimals = token?.decimals || 0;
-              const formattedAmount = (Number(amount) / Math.pow(10, decimals)).toFixed(decimals);
+              const formattedAmount = (Number(amount) / 10 ** decimals).toFixed(decimals);
               availableMsg.push(`${formattedAmount} ${denom.toUpperCase()}`);
             }
           }
@@ -880,7 +929,7 @@ app.get('/send/:address', async (req, res) => {
             result: `Daily token allowance exceeded. ${availableMsg.length > 0 ? `Available: ${availableMsg.join(', ')}. ` : ''}Reset in ${formattedTime}.`,
             error: 'allowance_exceeded',
             remainingTime,
-            available: Object.fromEntries(allowanceCheck.available)
+            available: Object.fromEntries(allowanceCheck.available),
           });
           return;
         }
@@ -903,24 +952,28 @@ app.get('/send/:address', async (req, res) => {
 
             // For Cosmos addresses, only keep native tokens
             if (addressType === 'cosmos') {
-              neededAmounts = neededAmounts.filter(token =>
-                token.denom === 'uatom' ||
-                !token.erc20_contract ||
-                token.erc20_contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
+              neededAmounts = neededAmounts.filter(
+                (token) =>
+                  token.denom === 'uatom' ||
+                  !token.erc20_contract ||
+                  token.erc20_contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
               );
               console.log('Filtered for Cosmos address - only native tokens');
             }
 
             // For EVM addresses, add WATOM metadata
             if (addressType === 'evm') {
-              neededAmounts = neededAmounts.map(token => {
-                if (token.denom === 'uatom' && (token.erc20_contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE')) {
+              neededAmounts = neededAmounts.map((token) => {
+                if (
+                  token.denom === 'uatom' &&
+                  token.erc20_contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
+                ) {
                   // The amount is already in WATOM (18 decimals) from the balance check
                   // Just add the WATOM metadata
                   return {
                     ...token,
                     symbol: 'WATOM',
-                    name: 'Wrapped ATOM'
+                    name: 'Wrapped ATOM',
                   };
                 }
                 return token;
@@ -929,14 +982,17 @@ app.get('/send/:address', async (req, res) => {
 
             console.log('Needed amounts:', neededAmounts);
 
-      // Filter out IBC tokens without contracts for EVM addresses
-      if (addressType === 'evm') {
-        neededAmounts = neededAmounts.filter(token => {
-          // Keep tokens that have a valid contract address (including native placeholder)
-          return token.erc20_contract && token.erc20_contract !== null;
-        });
-        console.log('Filtered needed amounts (removed IBC without contracts):', neededAmounts);
-      }
+            // Filter out IBC tokens without contracts for EVM addresses
+            if (addressType === 'evm') {
+              neededAmounts = neededAmounts.filter((token) => {
+                // Keep tokens that have a valid contract address (including native placeholder)
+                return token.erc20_contract && token.erc20_contract !== null;
+              });
+              console.log(
+                'Filtered needed amounts (removed IBC without contracts):',
+                neededAmounts
+              );
+            }
           }
 
           // Step 3: Check if any tokens are needed
@@ -945,42 +1001,45 @@ app.get('/send/:address', async (req, res) => {
             console.log(`Current balances meet all target amounts for eligible tokens`);
 
             // Build detailed token status for eligible tokens only
-            const eligibleTokens = chainConf.tx.amounts
-              .filter(token => {
-                // Filter tokens based on address type (same logic as above)
-                if (addressType === 'cosmos') {
-                  return token.denom === 'uatom' ||
-                    !token.erc20_contract ||
-                    token.erc20_contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
-                }
-                // For EVM, filter out IBC tokens without contracts
-                if (addressType === 'evm') {
-                  return token.erc20_contract && token.erc20_contract !== null;
-                }
-                return true;
-              });
+            const eligibleTokens = chainConf.tx.amounts.filter((token) => {
+              // Filter tokens based on address type (same logic as above)
+              if (addressType === 'cosmos') {
+                return (
+                  token.denom === 'uatom' ||
+                  !token.erc20_contract ||
+                  token.erc20_contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
+                );
+              }
+              // For EVM, filter out IBC tokens without contracts
+              if (addressType === 'evm') {
+                return token.erc20_contract && token.erc20_contract !== null;
+              }
+              return true;
+            });
 
-            const tokenStatus = eligibleTokens
-              .map(token => {
-                const balance = currentBalances.find(b => b.denom === token.denom);
-                const displaySymbol = (addressType === 'evm' && token.denom === 'uatom') ? 'WATOM' : token.symbol;
-                return {
-                  symbol: displaySymbol,
-                  name: token.name,
-                  status: 'already_funded',
-                  current_balance: balance?.current_amount || '0',
-                  target_balance: balance?.target_amount || token.target_balance,
-                  decimals: balance?.decimals || token.decimals
-                };
-              });
+            const tokenStatus = eligibleTokens.map((token) => {
+              const balance = currentBalances.find((b) => b.denom === token.denom);
+              const displaySymbol =
+                addressType === 'evm' && token.denom === 'uatom' ? 'WATOM' : token.symbol;
+              return {
+                symbol: displaySymbol,
+                name: token.name,
+                status: 'already_funded',
+                current_balance: balance?.current_amount || '0',
+                target_balance: balance?.target_amount || token.target_balance,
+                decimals: balance?.decimals || token.decimals,
+              };
+            });
 
             // Count ineligible tokens for the address type
-            const ineligibleTokens = chainConf.tx.amounts.filter(token => {
+            const ineligibleTokens = chainConf.tx.amounts.filter((token) => {
               if (addressType === 'cosmos') {
                 // ERC20 tokens are ineligible for Cosmos addresses
-                return token.erc20_contract && 
-                       token.erc20_contract !== '0x0000000000000000000000000000000000000000' &&
-                       token.erc20_contract !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
+                return (
+                  token.erc20_contract &&
+                  token.erc20_contract !== '0x0000000000000000000000000000000000000000' &&
+                  token.erc20_contract !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
+                );
               } else if (addressType === 'evm') {
                 // IBC tokens without contracts are ineligible for EVM addresses
                 return !token.erc20_contract || token.erc20_contract === null;
@@ -988,9 +1047,9 @@ app.get('/send/:address', async (req, res) => {
               return false;
             });
 
-            let message = "Wallet already has sufficient balance for all eligible tokens.";
+            let message = 'Wallet already has sufficient balance for all eligible tokens.';
             if (addressType === 'cosmos' && ineligibleTokens.length > 0) {
-              const erc20Names = ineligibleTokens.map(t => t.symbol).join(', ');
+              const erc20Names = ineligibleTokens.map((t) => t.symbol).join(', ');
               message = `Wallet already has sufficient balance for all eligible native tokens. Note: ERC20 tokens (${erc20Names}) are only available to EVM addresses.`;
             }
 
@@ -1006,18 +1065,21 @@ app.get('/send/:address', async (req, res) => {
                 current_balances: currentBalances,
                 tokens_sent: [],
                 tokens_not_sent: tokenStatus,
-                ineligible_tokens: ineligibleTokens.map(t => ({
+                ineligible_tokens: ineligibleTokens.map((t) => ({
                   symbol: t.symbol,
                   name: t.name,
-                  reason: addressType === 'cosmos' ? 'ERC20 tokens require EVM address' : 'IBC token not available on EVM'
+                  reason:
+                    addressType === 'cosmos'
+                      ? 'ERC20 tokens require EVM address'
+                      : 'IBC token not available on EVM',
                 })),
-                target_balances: eligibleTokens.map(token => ({
+                target_balances: eligibleTokens.map((token) => ({
                   denom: token.denom,
                   symbol: token.symbol,
                   target: token.target_balance,
-                  decimals: token.decimals
-                }))
-              }
+                  decimals: token.decimals,
+                })),
+              },
             };
 
             res.send(response);
@@ -1032,11 +1094,13 @@ app.get('/send/:address', async (req, res) => {
 
           // Step 5: Build response
           // Identify which tokens were not sent (already funded)
-          const eligibleTokens = chainConf.tx.amounts.filter(token => {
+          const eligibleTokens = chainConf.tx.amounts.filter((token) => {
             if (addressType === 'cosmos') {
-              return token.denom === 'uatom' ||
+              return (
+                token.denom === 'uatom' ||
                 !token.erc20_contract ||
-                token.erc20_contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
+                token.erc20_contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
+              );
             }
             // For EVM, filter out IBC tokens without contracts
             if (addressType === 'evm') {
@@ -1045,9 +1109,10 @@ app.get('/send/:address', async (req, res) => {
             return true;
           });
 
-          const tokensSent = neededAmounts.map(amount => {
-            const token = chainConf.tx.amounts.find(t => t.denom === amount.denom);
-            const displaySymbol = (amount.symbol === 'WATOM') ? 'WATOM' : token?.symbol || amount.denom;
+          const tokensSent = neededAmounts.map((amount) => {
+            const token = chainConf.tx.amounts.find((t) => t.denom === amount.denom);
+            const displaySymbol =
+              amount.symbol === 'WATOM' ? 'WATOM' : token?.symbol || amount.denom;
             return {
               denom: amount.denom,
               symbol: displaySymbol,
@@ -1055,15 +1120,16 @@ app.get('/send/:address', async (req, res) => {
               amount: amount.amount,
               decimals: amount.decimals,
               type: amount.type || (amount.erc20_contract ? 'erc20' : 'native'),
-              status: 'sent'
+              status: 'sent',
             };
           });
 
           const tokensNotSent = eligibleTokens
-            .filter(token => !neededAmounts.find(n => n.denom === token.denom))
-            .map(token => {
-              const balance = currentBalances.find(b => b.denom === token.denom);
-              const displaySymbol = (addressType === 'evm' && token.denom === 'uatom') ? 'WATOM' : token.symbol;
+            .filter((token) => !neededAmounts.find((n) => n.denom === token.denom))
+            .map((token) => {
+              const balance = currentBalances.find((b) => b.denom === token.denom);
+              const displaySymbol =
+                addressType === 'evm' && token.denom === 'uatom' ? 'WATOM' : token.symbol;
               return {
                 denom: token.denom,
                 symbol: displaySymbol,
@@ -1071,7 +1137,7 @@ app.get('/send/:address', async (req, res) => {
                 status: 'already_funded',
                 current_balance: balance?.current_amount || '0',
                 target_balance: balance?.target_amount || token.target_balance,
-                decimals: balance?.decimals || token.decimals
+                decimals: balance?.decimals || token.decimals,
               };
             });
 
@@ -1079,15 +1145,16 @@ app.get('/send/:address', async (req, res) => {
             result: {
               code: 0,
               status: neededAmounts.length > 0 ? 'partial_success' : 'no_tokens_sent',
-              message: tokensNotSent.length > 0
-                ? `Sent ${tokensSent.length} token(s). ${tokensNotSent.length} token(s) already had sufficient balance.`
-                : "Tokens sent successfully!",
+              message:
+                tokensNotSent.length > 0
+                  ? `Sent ${tokensSent.length} token(s). ${tokensNotSent.length} token(s) already had sufficient balance.`
+                  : 'Tokens sent successfully!',
               ...txResult,
               current_balances: currentBalances,
               tokens_sent: tokensSent,
               tokens_not_sent: tokensNotSent,
-              testing_mode: TESTING_MODE
-            }
+              testing_mode: TESTING_MODE,
+            },
           };
 
           // Update token allowances for successful transactions
@@ -1100,7 +1167,6 @@ app.get('/send/:address', async (req, res) => {
           }
 
           res.send(response);
-
         } catch (error) {
           console.error('Smart faucet error:', error);
 
@@ -1110,17 +1176,18 @@ app.get('/send/:address', async (req, res) => {
             failedTxDetails = {
               transaction_hash: txResult.hash,
               network_type: txResult.network_type || 'evm',
-              explorer_url: txResult.explorer_url || `${chainConf.endpoints.evm_explorer}/tx/${txResult.hash}`,
+              explorer_url:
+                txResult.explorer_url || `${chainConf.endpoints.evm_explorer}/tx/${txResult.hash}`,
               gas_used: txResult.gas_used || '0',
               status: 0, // Failed
               error_details: txResult.error || txResult.revertReason || error.message,
               current_balances: currentBalances,
-              tokens_attempted: neededAmounts.map(amount => ({
+              tokens_attempted: neededAmounts.map((amount) => ({
                 denom: amount.denom,
                 amount: amount.amount,
                 decimals: amount.decimals,
-                type: amount.type || (amount.erc20_contract ? 'erc20' : 'native')
-              }))
+                type: amount.type || (amount.erc20_contract ? 'erc20' : 'native'),
+              })),
             };
           }
 
@@ -1129,15 +1196,15 @@ app.get('/send/:address', async (req, res) => {
               code: -1,
               message: error.message || 'Transaction failed',
               error: error.toString(),
-              ...failedTxDetails
-            }
+              ...failedTxDetails,
+            },
           });
         }
       } else {
-        const addressLimitMsg = !await checker.checkAddress(address, 'dual', false)
+        const addressLimitMsg = !(await checker.checkAddress(address, 'dual', false))
           ? `Address ${address} has reached the daily limit (${chainConf.limit.address} request per 24h).`
           : '';
-        const ipLimitMsg = !await checker.checkIp(`dual${ip}`, 'dual', false)
+        const ipLimitMsg = !(await checker.checkIp(`dual${ip}`, 'dual', false))
           ? `IP ${ip} has reached the daily limit (${chainConf.limit.ip} requests per 24h).`
           : '';
 
@@ -1145,32 +1212,31 @@ app.get('/send/:address', async (req, res) => {
           result: {
             code: -2,
             message: 'Rate limit exceeded',
-            details: [addressLimitMsg, ipLimitMsg].filter(msg => msg).join(' ')
-          }
+            details: [addressLimitMsg, ipLimitMsg].filter((msg) => msg).join(' '),
+          },
         });
       }
-
     } catch (ex) {
       console.error('Transaction error:', ex);
       res.send({
         result: {
           code: -1,
           message: ex.message || 'Transaction failed',
-          error: ex.toString()
-        }
+          error: ex.toString(),
+        },
       });
     }
   } else {
-    res.send({ result: 'Address is required!' })
+    res.send({ result: 'Address is required!' });
   }
-})
+});
 
 // Test endpoint
 app.get('/test', (req, res) => {
   res.send({
     status: 'ok',
     evmAddress: getEvmAddress(),
-    cosmosAddress: getCosmosAddress()
+    cosmosAddress: getCosmosAddress(),
   });
 });
 
@@ -1179,7 +1245,7 @@ app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    uptime: process.uptime(),
   });
 });
 
@@ -1191,12 +1257,12 @@ app.get('/api/approvals', async (req, res) => {
       success: true,
       faucet_address: getEvmAddress(),
       spender_address: chainConf.contracts.atomicMultiSend,
-      approvals: approvals
+      approvals: approvals,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -1208,9 +1274,9 @@ function getTestingModeAmounts(configAmounts) {
   for (const token of configAmounts) {
     testAmounts.push({
       denom: token.denom,
-      amount: "1", // Always send 1 of the smallest unit
+      amount: '1', // Always send 1 of the smallest unit
       erc20_contract: token.erc20_contract,
-      decimals: token.decimals
+      decimals: token.decimals,
     });
   }
 
@@ -1235,21 +1301,25 @@ async function checkRecipientBalances(address, addressType) {
       // For Cosmos addresses, only check native tokens (not ERC20s)
       for (const token of chainConf.tx.amounts) {
         // Skip ERC20 tokens for Cosmos addresses
-        if (token.erc20_contract &&
-            token.erc20_contract !== "0x0000000000000000000000000000000000000000" &&
-            token.erc20_contract !== "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE") {
+        if (
+          token.erc20_contract &&
+          token.erc20_contract !== '0x0000000000000000000000000000000000000000' &&
+          token.erc20_contract !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
+        ) {
           continue;
         }
 
-        const balance = data.balances?.find(b => b.denom === token.denom);
+        const balance = data.balances?.find((b) => b.denom === token.denom);
         if (balance) {
-          console.log(`[TOKEN] ${token.denom}: current=${balance.amount}, target=${token.target_balance}`);
+          console.log(
+            `[TOKEN] ${token.denom}: current=${balance.amount}, target=${token.target_balance}`
+          );
         }
         balances.push({
           denom: token.denom,
-          current_amount: balance ? balance.amount : "0",
+          current_amount: balance ? balance.amount : '0',
           target_amount: token.target_balance,
-          decimals: token.decimals
+          decimals: token.decimals,
         });
       }
     } else if (addressType === 'evm') {
@@ -1257,18 +1327,21 @@ async function checkRecipientBalances(address, addressType) {
       const ethProvider = new JsonRpcProvider(chainConf.endpoints.evm_endpoint);
 
       for (const token of chainConf.tx.amounts) {
-        if (token.erc20_contract === "0x0000000000000000000000000000000000000000") {
+        if (token.erc20_contract === '0x0000000000000000000000000000000000000000') {
           // Native token balance
           const balance = await ethProvider.getBalance(address);
           balances.push({
             denom: token.denom,
             current_amount: balance.toString(),
             target_amount: token.target_balance,
-            decimals: token.decimals
+            decimals: token.decimals,
           });
-        } else if (token.denom === 'uatom' && token.erc20_contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
+        } else if (
+          token.denom === 'uatom' &&
+          token.erc20_contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
+        ) {
           // Use ERC20 interface for WATOM (cleaner 6-decimal representation)
-          const erc20ABI = ["function balanceOf(address owner) view returns (uint256)"];
+          const erc20ABI = ['function balanceOf(address owner) view returns (uint256)'];
           const tokenContract = new Contract(token.erc20_contract, erc20ABI, ethProvider);
           const balance = await tokenContract.balanceOf(address);
 
@@ -1276,18 +1349,18 @@ async function checkRecipientBalances(address, addressType) {
             denom: token.denom,
             current_amount: balance.toString(),
             target_amount: token.target_balance,
-            decimals: 6 // Use ATOM's native 6 decimals
+            decimals: 6, // Use ATOM's native 6 decimals
           });
         } else {
           // ERC20 token balance
-          const erc20ABI = ["function balanceOf(address owner) view returns (uint256)"];
+          const erc20ABI = ['function balanceOf(address owner) view returns (uint256)'];
           const tokenContract = new Contract(token.erc20_contract, erc20ABI, ethProvider);
           const balance = await tokenContract.balanceOf(address);
           balances.push({
             denom: token.denom,
             current_amount: balance.toString(),
             target_amount: token.target_balance,
-            decimals: token.decimals
+            decimals: token.decimals,
           });
         }
       }
@@ -1298,9 +1371,9 @@ async function checkRecipientBalances(address, addressType) {
     for (const token of chainConf.tx.amounts) {
       balances.push({
         denom: token.denom,
-        current_amount: "0",
+        current_amount: '0',
         target_amount: token.target_balance,
-        decimals: token.decimals
+        decimals: token.decimals,
       });
     }
   }
@@ -1313,10 +1386,10 @@ function calculateNeededAmounts(currentBalances, configAmounts) {
   const neededAmounts = [];
 
   for (const currentBalance of currentBalances) {
-    const configToken = configAmounts.find(t => t.denom === currentBalance.denom);
+    const configToken = configAmounts.find((t) => t.denom === currentBalance.denom);
     if (!configToken) continue;
 
-    const current = BigInt(currentBalance.current_amount || "0");
+    const current = BigInt(currentBalance.current_amount || '0');
     const target = BigInt(currentBalance.target_amount || configToken.target_balance);
 
     if (current < target) {
@@ -1325,7 +1398,7 @@ function calculateNeededAmounts(currentBalances, configAmounts) {
         denom: currentBalance.denom,
         amount: needed.toString(),
         erc20_contract: configToken.erc20_contract,
-        decimals: currentBalance.decimals || configToken.decimals
+        decimals: currentBalance.decimals || configToken.decimals,
       });
     }
   }
@@ -1336,25 +1409,29 @@ function calculateNeededAmounts(currentBalances, configAmounts) {
 // Smart faucet transaction handler
 async function sendSmartFaucetTx(recipientAddress, addressType, neededAmounts) {
   console.log(`\n>> Sending tokens to ${recipientAddress} (${addressType})...`);
-  console.log(`Tokens to send: ${neededAmounts.map(t => `${t.denom}: ${t.amount}`).join(', ')}`);
+  console.log(`Tokens to send: ${neededAmounts.map((t) => `${t.denom}: ${t.amount}`).join(', ')}`);
   console.log(`Recipient address type: ${addressType}`);
   console.log('All needed amounts:', neededAmounts);
 
   // Separate ERC20 and native tokens
   // Separate ERC20s from native tokens
   // WATOM (0xEeeee...) is actually native ATOM, not an ERC20
-  const erc20Tokens = neededAmounts.filter(t => t.erc20_contract &&
-    t.erc20_contract !== "0x0000000000000000000000000000000000000000" &&
-    t.erc20_contract !== "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+  const erc20Tokens = neededAmounts.filter(
+    (t) =>
+      t.erc20_contract &&
+      t.erc20_contract !== '0x0000000000000000000000000000000000000000' &&
+      t.erc20_contract !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
   );
-  const nativeTokens = neededAmounts.filter(t => !t.erc20_contract ||
-    t.erc20_contract === "0x0000000000000000000000000000000000000000" ||
-    t.erc20_contract === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+  const nativeTokens = neededAmounts.filter(
+    (t) =>
+      !t.erc20_contract ||
+      t.erc20_contract === '0x0000000000000000000000000000000000000000' ||
+      t.erc20_contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
   );
 
   const results = {
     network_type: addressType,
-    transfers: []
+    transfers: [],
   };
 
   try {
@@ -1374,9 +1451,9 @@ async function sendSmartFaucetTx(recipientAddress, addressType, neededAmounts) {
         results.value = evmResult.value ? evmResult.value.toString() : '0';
         results.status = evmResult.status;
         results.explorer_url = `${chainConf.endpoints.evm_explorer}/tx/${evmResult.hash}`;
-        results.truncated_hash = evmResult.hash ?
-          `${evmResult.hash.substring(0, 10)}...${evmResult.hash.substring(evmResult.hash.length - 8)}` :
-          null;
+        results.truncated_hash = evmResult.hash
+          ? `${evmResult.hash.substring(0, 10)}...${evmResult.hash.substring(evmResult.hash.length - 8)}`
+          : null;
 
         // Add transfer details
         for (const token of neededAmounts) {
@@ -1386,7 +1463,7 @@ async function sendSmartFaucetTx(recipientAddress, addressType, neededAmounts) {
             denom: token.denom,
             hash: evmResult.hash,
             status: evmResult.status,
-            type: token.erc20_contract ? 'erc20' : 'native'
+            type: token.erc20_contract ? 'erc20' : 'native',
           });
         }
 
@@ -1411,9 +1488,9 @@ async function sendSmartFaucetTx(recipientAddress, addressType, neededAmounts) {
           results.rest_api_url = cosmosResult.restApiUrl;
           // Add explorer URL for Cosmos transactions from config
           results.explorer_url = `${conf.blockchain.endpoints.cosmos_explorer}/tx/${cosmosResult.transactionHash}`;
-          results.truncated_hash = cosmosResult.transactionHash ?
-            `${cosmosResult.transactionHash.substring(0, 8)}...${cosmosResult.transactionHash.substring(cosmosResult.transactionHash.length - 8)}` :
-            null;
+          results.truncated_hash = cosmosResult.transactionHash
+            ? `${cosmosResult.transactionHash.substring(0, 8)}...${cosmosResult.transactionHash.substring(cosmosResult.transactionHash.length - 8)}`
+            : null;
 
           // Add transfer details
           for (const token of nativeTokens) {
@@ -1423,7 +1500,7 @@ async function sendSmartFaucetTx(recipientAddress, addressType, neededAmounts) {
               denom: token.denom,
               hash: cosmosResult.transactionHash,
               status: cosmosResult.code === 0 ? 1 : 0,
-              type: 'cosmos_native'
+              type: 'cosmos_native',
             });
           }
 
@@ -1435,16 +1512,17 @@ async function sendSmartFaucetTx(recipientAddress, addressType, neededAmounts) {
           results.network_type = 'cosmos';
           results.cosmos_error = cosmosError.message;
           results.error_details = cosmosError.details || {};
-          results.broadcast_result = cosmosError.broadcastResult || cosmosError.details?.broadcastResult || null;
+          results.broadcast_result =
+            cosmosError.broadcastResult || cosmosError.details?.broadcastResult || null;
           results.rest_api_url = cosmosError.restApiUrl || cosmosError.details?.restApiUrl || null;
           results.raw_log = cosmosError.raw_log || cosmosError.details?.raw_log || null;
 
-          results.failed_transfers = nativeTokens.map(token => ({
+          results.failed_transfers = nativeTokens.map((token) => ({
             token: 'native',
             amount: token.amount,
             denom: token.denom,
             error: cosmosError.message,
-            type: 'cosmos_native'
+            type: 'cosmos_native',
           }));
 
           throw cosmosError;
@@ -1454,7 +1532,6 @@ async function sendSmartFaucetTx(recipientAddress, addressType, neededAmounts) {
 
     console.log('\nSmart faucet transaction complete!');
     return results;
-
   } catch (error) {
     console.error('Smart faucet error:', error);
     throw new Error(`Smart faucet failed: ${error.message}`);
@@ -1466,17 +1543,20 @@ async function sendSmartEvmTx(recipientAddress, neededAmounts) {
   console.log('Sending atomic EVM tokens to:', recipientAddress);
   console.log('Needed amounts:', neededAmounts);
 
-
   // Separate ERC20 and native tokens
   // Separate ERC20s from native tokens
   // WATOM (0xEeeee...) is actually native ATOM, not an ERC20
-  const erc20Tokens = neededAmounts.filter(t => t.erc20_contract &&
-    t.erc20_contract !== "0x0000000000000000000000000000000000000000" &&
-    t.erc20_contract !== "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+  const erc20Tokens = neededAmounts.filter(
+    (t) =>
+      t.erc20_contract &&
+      t.erc20_contract !== '0x0000000000000000000000000000000000000000' &&
+      t.erc20_contract !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
   );
-  const nativeTokens = neededAmounts.filter(t => !t.erc20_contract ||
-    t.erc20_contract === "0x0000000000000000000000000000000000000000" ||
-    t.erc20_contract === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+  const nativeTokens = neededAmounts.filter(
+    (t) =>
+      !t.erc20_contract ||
+      t.erc20_contract === '0x0000000000000000000000000000000000000000' ||
+      t.erc20_contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
   );
 
   const ethProvider = new JsonRpcProvider(chainConf.endpoints.evm_endpoint);
@@ -1508,12 +1588,12 @@ async function sendSmartEvmTx(recipientAddress, neededAmounts) {
       const seenTokens = new Set();
 
       // Add ERC20 transfers (with deduplication)
-      erc20Tokens.forEach(t => {
+      erc20Tokens.forEach((t) => {
         if (!seenTokens.has(t.erc20_contract)) {
           seenTokens.add(t.erc20_contract);
           transfers.push({
             token: t.erc20_contract,
-            amount: t.amount
+            amount: t.amount,
           });
         } else {
           console.log('WARNING: Skipping duplicate ERC20 token:', t.erc20_contract);
@@ -1522,13 +1602,13 @@ async function sendSmartEvmTx(recipientAddress, neededAmounts) {
 
       // Add native token transfers (address(0) represents native tokens)
       let totalNativeAmount = BigInt(0);
-      nativeTokens.forEach(t => {
+      nativeTokens.forEach((t) => {
         // Only add one native token transfer
         if (!seenTokens.has('native')) {
           seenTokens.add('native');
           transfers.push({
             token: '0x0000000000000000000000000000000000000000', // address(0) for native
-            amount: t.amount
+            amount: t.amount,
           });
           totalNativeAmount += BigInt(t.amount);
         } else {
@@ -1538,7 +1618,7 @@ async function sendSmartEvmTx(recipientAddress, neededAmounts) {
       });
 
       // Safety check: ensure no duplicate tokens
-      const tokenAddresses = transfers.map(t => t.token);
+      const tokenAddresses = transfers.map((t) => t.token);
       const uniqueTokens = new Set(tokenAddresses);
       if (tokenAddresses.length !== uniqueTokens.size) {
         console.error('ERROR: Duplicate tokens in transfers array!');
@@ -1547,14 +1627,10 @@ async function sendSmartEvmTx(recipientAddress, neededAmounts) {
       }
 
       // Execute atomic transfer with native value if needed
-      tx = await atomicContract.atomicMultiSend(
-        recipientAddress,
-        transfers,
-        {
-          value: totalNativeAmount,
-          gasLimit: 500000 // Reasonable gas limit for multiple transfers
-        }
-      );
+      tx = await atomicContract.atomicMultiSend(recipientAddress, transfers, {
+        value: totalNativeAmount,
+        gasLimit: 500000, // Reasonable gas limit for multiple transfers
+      });
 
       console.log('Atomic transaction sent:', tx.hash);
       receipt = await tx.wait();
@@ -1578,8 +1654,9 @@ async function sendSmartEvmTx(recipientAddress, neededAmounts) {
         return receipt;
       } else if (nativeTokens.length === 1) {
         console.log('Native token transfer via EVM');
-        const totalNative = nativeTokens.reduce((sum, token) =>
-          sum + BigInt(token.amount), BigInt(0)
+        const totalNative = nativeTokens.reduce(
+          (sum, token) => sum + BigInt(token.amount),
+          BigInt(0)
         );
 
         // Check faucet balance before sending
@@ -1588,12 +1665,14 @@ async function sendSmartEvmTx(recipientAddress, neededAmounts) {
         console.log(`Required WATOM amount: ${totalNative.toString()} wei`);
 
         if (faucetBalance < totalNative) {
-          throw new Error(`Insufficient faucet balance. Has ${faucetBalance.toString()} wei, needs ${totalNative.toString()} wei`);
+          throw new Error(
+            `Insufficient faucet balance. Has ${faucetBalance.toString()} wei, needs ${totalNative.toString()} wei`
+          );
         }
 
         tx = await wallet.sendTransaction({
           to: recipientAddress,
-          value: totalNative
+          value: totalNative,
         });
 
         console.log('Native transaction sent:', tx.hash);
@@ -1605,7 +1684,6 @@ async function sendSmartEvmTx(recipientAddress, neededAmounts) {
     }
 
     throw new Error('No tokens to send');
-
   } catch (error) {
     console.error('EVM transaction error:', error);
 
@@ -1635,7 +1713,7 @@ async function sendSmartEvmTx(recipientAddress, neededAmounts) {
         gasUsed: receipt?.gasUsed?.toString() || '0',
         status: 0, // Failed status
         error: error.message,
-        revertReason: error.reason || error.data?.message || 'Transaction reverted'
+        revertReason: error.reason || error.data?.message || 'Transaction reverted',
       };
     }
 
@@ -1660,10 +1738,12 @@ async function sendCosmosTx(recipientAddress, nativeTokens) {
 
     // Build amount array for native tokens
     // Sort by denom alphabetically as required by Cosmos
-    const amounts = nativeTokens.map(token => ({
-      denom: token.denom,
-      amount: token.amount
-    })).sort((a, b) => a.denom.localeCompare(b.denom));
+    const amounts = nativeTokens
+      .map((token) => ({
+        denom: token.denom,
+        amount: token.amount,
+      }))
+      .sort((a, b) => a.denom.localeCompare(b.denom));
     console.log('Amounts to send (sorted):', amounts);
 
     // Create the transaction
@@ -1693,7 +1773,7 @@ async function sendCosmosTx(recipientAddress, nativeTokens) {
     // But we store 65 bytes initially and the verification strips the recovery ID
     const signatureBytes = Buffer.concat([
       Buffer.from(signatureResult.r.toString(16).padStart(64, '0'), 'hex'),
-      Buffer.from(signatureResult.s.toString(16).padStart(64, '0'), 'hex')
+      Buffer.from(signatureResult.s.toString(16).padStart(64, '0'), 'hex'),
     ]);
 
     console.log('Signature length:', signatureBytes.length);
@@ -1723,8 +1803,8 @@ async function sendCosmosTx(recipientAddress, nativeTokens) {
       },
       body: JSON.stringify({
         tx_bytes: txBase64,
-        mode: 'BROADCAST_MODE_SYNC'
-      })
+        mode: 'BROADCAST_MODE_SYNC',
+      }),
     });
 
     if (!broadcastResponse.ok) {
@@ -1737,7 +1817,9 @@ async function sendCosmosTx(recipientAddress, nativeTokens) {
     console.log('Broadcast result:', broadcastResult);
 
     if (broadcastResult.tx_response && broadcastResult.tx_response.code !== 0) {
-      const error = new Error(`Transaction failed: ${broadcastResult.tx_response.raw_log || broadcastResult.tx_response.log}`);
+      const error = new Error(
+        `Transaction failed: ${broadcastResult.tx_response.raw_log || broadcastResult.tx_response.log}`
+      );
       error.broadcastResult = broadcastResult;
       error.restApiUrl = `${chainConf.endpoints.rest_endpoint}/cosmos/tx/v1beta1/txs/${broadcastResult.tx_response.txhash || 'unknown'}`;
       error.raw_log = broadcastResult.tx_response.raw_log;
@@ -1757,10 +1839,10 @@ async function sendCosmosTx(recipientAddress, nativeTokens) {
       timestamp: broadcastResult.tx_response.timestamp,
       tx: {
         body: {
-          messages: broadcastResult.tx_response.tx?.body?.messages || []
-        }
+          messages: broadcastResult.tx_response.tx?.body?.messages || [],
+        },
       },
-      events: broadcastResult.tx_response.events ? broadcastResult.tx_response.events.length : 0
+      events: broadcastResult.tx_response.events ? broadcastResult.tx_response.events.length : 0,
     };
 
     return {
@@ -1771,9 +1853,8 @@ async function sendCosmosTx(recipientAddress, nativeTokens) {
       gasWanted: broadcastResult.tx_response.gas_wanted || '0',
       code: broadcastResult.tx_response.code || 0,
       restApiUrl: restApiUrl,
-      tx_response: simplifiedTxResponse
+      tx_response: simplifiedTxResponse,
     };
-
   } catch (error) {
     console.error('Cosmos transaction error:', error);
 
@@ -1782,7 +1863,7 @@ async function sendCosmosTx(recipientAddress, nativeTokens) {
       message: error.message,
       restApiUrl: error.restApiUrl || null,
       broadcastResult: error.broadcastResult || null,
-      raw_log: error.raw_log || null
+      raw_log: error.raw_log || null,
     };
 
     const fullError = new Error(`Cosmos transaction failed: ${error.message}`);
@@ -1843,7 +1924,7 @@ async function initializeFaucet() {
   logRotation.registerLogFile('server.log', {
     maxSize: 5 * 1024 * 1024, // 5MB
     maxFiles: 3,
-    compress: false
+    compress: false,
   });
 
   // Register vite log if it exists
@@ -1851,7 +1932,7 @@ async function initializeFaucet() {
     logRotation.registerLogFile('vite.log', {
       maxSize: 5 * 1024 * 1024, // 5MB
       maxFiles: 3,
-      compress: false
+      compress: false,
     });
   }
 
@@ -1869,9 +1950,9 @@ async function initializeFaucet() {
 
 // Add erc20 ABI for balance checking
 const erc20ABI = [
-  "function balanceOf(address owner) view returns (uint256)",
-  "function decimals() view returns (uint8)",
-  "function symbol() view returns (string)"
+  'function balanceOf(address owner) view returns (uint256)',
+  'function decimals() view returns (uint8)',
+  'function symbol() view returns (string)',
 ];
 
 // Static files are now served at the beginning of the middleware chain
@@ -1881,9 +1962,14 @@ app.use((err, req, res, next) => {
   console.error('Server error:', err);
   console.error('Error path:', req.path);
   console.error('Error method:', req.method);
-  
+
   // Don't send JSON for asset requests
-  if (req.path.includes('.css') || req.path.includes('.js') || req.path.includes('.png') || req.path.includes('.jpg')) {
+  if (
+    req.path.includes('.css') ||
+    req.path.includes('.js') ||
+    req.path.includes('.png') ||
+    req.path.includes('.jpg')
+  ) {
     res.status(500).send('Internal server error');
   } else {
     res.status(500).json({ error: 'Internal server error' });
@@ -1920,4 +2006,4 @@ app.listen(conf.port, HOST, async () => {
   console.log(`[START] Faucet server starting on ${HOST}:${conf.port}...`);
   await initializeFaucet();
   console.log(` Server listening on http://${HOST}:${conf.port}`);
-})
+});
