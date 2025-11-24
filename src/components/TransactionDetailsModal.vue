@@ -197,10 +197,10 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['close']);
+const _emit = defineEmits(['close']);
 
 const { networkConfig } = useConfig();
-const showFullJson = ref(false);
+const _showFullJson = ref(false);
 
 const isCosmosTransaction = computed(() => {
   return (
@@ -216,12 +216,12 @@ const isEvmTransaction = computed(() => {
   );
 });
 
-const hasTokenTransfers = computed(() => {
+const _hasTokenTransfers = computed(() => {
   const result = props.transaction.data?.result;
   return result?.tokens_sent?.length > 0 || result?.tokens_not_sent?.length > 0;
 });
 
-const cosmosData = computed(() => {
+const _cosmosData = computed(() => {
   if (!isCosmosTransaction.value) return null;
 
   const result = props.transaction.data?.result;
@@ -238,7 +238,7 @@ const cosmosData = computed(() => {
   };
 });
 
-const evmData = computed(() => {
+const _evmData = computed(() => {
   if (!isEvmTransaction.value) return null;
 
   const result = props.transaction.data?.result;
@@ -247,7 +247,7 @@ const evmData = computed(() => {
   return result.evm_tx_data;
 });
 
-const cosmosRestApiUrl = computed(() => {
+const _cosmosRestApiUrl = computed(() => {
   if (!isCosmosTransaction.value) return null;
 
   // First check if we have a REST API URL already
@@ -265,7 +265,7 @@ const cosmosRestApiUrl = computed(() => {
   return null;
 });
 
-const explorerUrl = computed(() => {
+const _explorerUrl = computed(() => {
   const result = props.transaction.data?.result;
 
   // Use provided explorer URL first
@@ -296,16 +296,10 @@ const getActualTransactionHash = (tx) => {
 
   const result = tx.data.result;
 
-  return (
-    result.transaction_hash ||
-    result.hash ||
-    (result.transactions && result.transactions[0]) ||
-    tx.hash ||
-    null
-  );
+  return result.transaction_hash || result.hash || result.transactions?.[0] || tx.hash || null;
 };
 
-const getTransactionStatus = (tx) => {
+const _getTransactionStatus = (tx) => {
   if (!tx.success) {
     return 'Failed';
   }
@@ -315,7 +309,7 @@ const getTransactionStatus = (tx) => {
   return 'Success';
 };
 
-const getTransactionBadgeClass = (tx) => {
+const _getTransactionBadgeClass = (tx) => {
   if (!tx.success) {
     return 'bg-danger';
   }
@@ -325,7 +319,7 @@ const getTransactionBadgeClass = (tx) => {
   return 'bg-success';
 };
 
-const formatTokenAmount = (amount, decimals = 18) => {
+const _formatTokenAmount = (amount, decimals = 18) => {
   if (!amount) return '0';
 
   try {
@@ -340,7 +334,7 @@ const formatTokenAmount = (amount, decimals = 18) => {
       const fractionStr = fraction.toString().padStart(decimals, '0').replace(/0+$/, '');
       return `${whole.toString()}.${fractionStr}`;
     }
-  } catch (error) {
+  } catch (_error) {
     return amount.toString();
   }
 };

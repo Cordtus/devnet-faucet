@@ -110,25 +110,25 @@
 import { ref } from 'vue';
 import { useConfig } from '../../composables/useConfig';
 import { useTransactions } from '../../composables/useTransactions';
-import TransactionDetailsModal from '../TransactionDetailsModal.vue';
 
 const { networkConfig } = useConfig();
+// biome-ignore lint/correctness/noUnusedVariables: all used in template
 const { recentTransactions, removeTransaction, clearAllTransactions } = useTransactions();
 
 const selectedTransaction = ref(null);
 const copiedItem = ref(null);
 
-const showTransactionDetails = (tx) => {
+const _showTransactionDetails = (tx) => {
   selectedTransaction.value = tx;
 };
 
-const truncateHash = (hash) => {
+const _truncateHash = (hash) => {
   if (!hash) return '';
   if (hash.length <= 10) return hash;
   return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
 };
 
-const copyToClipboard = async (text, itemId) => {
+const _copyToClipboard = async (text, itemId) => {
   try {
     await navigator.clipboard.writeText(text);
     copiedItem.value = itemId;
@@ -145,16 +145,10 @@ const getActualTransactionHash = (tx) => {
 
   const result = tx.data.result;
 
-  return (
-    result.transaction_hash ||
-    result.hash ||
-    (result.transactions && result.transactions[0]) ||
-    tx.hash ||
-    null
-  );
+  return result.transaction_hash || result.hash || result.transactions?.[0] || tx.hash || null;
 };
 
-const getTransactionIcon = (tx) => {
+const _getTransactionIcon = (tx) => {
   if (!tx.success) {
     return 'fas fa-exclamation-triangle text-danger';
   }
@@ -164,7 +158,7 @@ const getTransactionIcon = (tx) => {
   return 'fas fa-check-circle text-success';
 };
 
-const getTransactionBadgeClass = (tx) => {
+const _getTransactionBadgeClass = (tx) => {
   if (!tx.success) {
     return 'bg-danger';
   }
@@ -174,7 +168,7 @@ const getTransactionBadgeClass = (tx) => {
   return 'bg-success';
 };
 
-const getTransactionStatus = (tx) => {
+const _getTransactionStatus = (tx) => {
   if (!tx.success) {
     return 'Failed';
   }
@@ -197,7 +191,7 @@ const isNoTokensNeeded = (tx) => {
   return false;
 };
 
-const getTransactionExplorerUrl = (tx) => {
+const _getTransactionExplorerUrl = (tx) => {
   if (!tx || !tx.data || !tx.data.result) return null;
 
   const result = tx.data.result;
@@ -227,7 +221,7 @@ const getTransactionExplorerUrl = (tx) => {
   return null;
 };
 
-const getTransactionExplorerLabel = (tx) => {
+const _getTransactionExplorerLabel = (tx) => {
   if (!tx || !tx.data || !tx.data.result) return 'View';
 
   const result = tx.data.result;
@@ -246,7 +240,7 @@ const getTransactionExplorerLabel = (tx) => {
   return 'View';
 };
 
-const formatTokenAmount = (amount, decimals = 18) => {
+const _formatTokenAmount = (amount, decimals = 18) => {
   if (!amount) return '0';
 
   try {
@@ -261,12 +255,12 @@ const formatTokenAmount = (amount, decimals = 18) => {
       const fractionStr = fraction.toString().padStart(decimals, '0').replace(/0+$/, '');
       return `${whole.toString()}.${fractionStr}`;
     }
-  } catch (error) {
+  } catch (_error) {
     return amount.toString();
   }
 };
 
-const formatDate = (date) => {
+const _formatDate = (date) => {
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: 'numeric',

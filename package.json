@@ -16,19 +16,11 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "test:solidity": "forge test",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "lint:unsafe": "biome check --write --unsafe .",
     "format": "biome format --write .",
-    "check": "biome check . && vitest run",
-    "deploy": "node scripts/automated-deploy.js",
-    "deploy:test": "node scripts/automated-deploy.js --test",
-    "verify:latest": "node scripts/verify-contracts-automated.js deployments/latest-deployment.json",
-    "validate": "node scripts/validate-environment.js",
-    "extract-abi": "node scripts/extract-abi.js",
-    "approval": "node scripts/setup-approvals.js",
-    "version:bump": "node scripts/bump-version.js"
+    "check": "biome check . && vitest run"
   },
   "repository": {
     "type": "git",
@@ -77,7 +69,6 @@
     "@vitest/ui": "^4.0.13",
     "@vue/test-utils": "^2.4.6",
     "chai": "^4.5.0",
-    "forge": "^2.3.0",
     "happy-dom": "^20.0.10",
     "supertest": "^7.1.4",
     "vite": "^7.0.0",

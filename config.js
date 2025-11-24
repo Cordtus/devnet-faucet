@@ -1,126 +1,89 @@
-// Configuration auto-updated on 2025-06-18T05:13:50.402Z
 import { stringToPath } from '@cosmjs/crypto';
-import fs from 'fs';
 import secureKeyManager from './src/SecureKeyManager.js';
-import TokenConfigLoader from './src/TokenConfigLoader.js';
 
 const config = {
   port: 8088,
-  // http port
   db: {
-    path: '.faucet/history.db', // save request states
+    path: '.faucet/history.db',
   },
   project: {
-    name: 'Cosmos-EVM Devnet Faucet',
+    name: 'Devnet Faucet',
     logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/cosmoshub/images/atom.svg',
-    deployer: `<a href="https://cosmos.network">Cosmos Network</a>`,
+    deployer: '<a href="#">Your Project</a>',
   },
-  // Single chain with dual environments (Cosmos + EVM)
   blockchain: {
-    name: 'cosmos-evm-chain',
-    type: 'DualEnvironment', // New type for dual environment support
+    name: 'devnet',
+    type: 'DualEnvironment',
     ids: {
-      chainId: 4231, // EVM chain ID
-      cosmosChainId: '4321', // Cosmos chain ID
+      chainId: 1234, // EVM chain ID
+      cosmosChainId: 'chain-1', // Cosmos chain ID
     },
     endpoints: {
-      // Cosmos environment
-      rpc_endpoint: 'https://devnet-1-rpc.ib.skip.build',
-      grpc_endpoint: 'devnet-1-grpc.ib.skip.build:443',
-      rest_endpoint: 'https://devnet-1-lcd.ib.skip.build',
-      // EVM environment
-      evm_endpoint: 'https://devnet-1-evmrpc.ib.skip.build',
-      evm_websocket: 'wss://devnet-1-evmws.ib.skip.build',
-      evm_explorer: 'https://evm-devnet-1.cloud.blockscout.com',
-      cosmos_explorer: 'https://devnet-explorer.fly.dev/Cosmos%20Evm%20Devnet',
-    },
-    // Contract addresses - loaded from tokens.json
-    contracts: {
-      atomicMultiSend: null, // Will be loaded from TokenConfigLoader
+      rpc_endpoint: 'https://rpc.yourchain.com:26657',
+      grpc_endpoint: 'rpc.yourchain.com:9090',
+      rest_endpoint: 'https://rpc.yourchain.com:1317',
+      evm_endpoint: 'https://rpc.yourchain.com:8545',
+      evm_websocket: 'wss://rpc.yourchain.com:8546',
+      evm_explorer: 'https://explorer.yourchain.com',
+      cosmos_explorer: 'https://explorer.yourchain.com',
     },
     sender: {
-      // Using eth_secp256k1 derivation path for both environments
       option: {
-        hdPaths: [stringToPath("m/44'/60'/0'/0/0")], // Ethereum derivation path
-        prefix: 'cosmos', // Cosmos address prefix - updated to use cosmos prefix
+        hdPaths: [stringToPath("m/44'/60'/0'/0/0")],
+        prefix: 'cosmos',
       },
     },
     tx: {
-      // Multi-token amounts - will be loaded from tokens.json below
-      amounts: [], // Will be populated after TokenConfigLoader initialization
+      // Native token configuration
+      amounts: [
+        {
+          denom: 'utoken',
+          symbol: 'TOKEN',
+          name: 'Native Token',
+          amount: '1000000000000000000', // 1 TOKEN (18 decimals)
+          decimals: 18,
+          display_denom: 'TOKEN',
+        },
+      ],
       fee: {
-        // Cosmos fee
         cosmos: {
-          amount: [
-            {
-              amount: '5000',
-              denom: 'uatom', // Use native token for fees - changed from uatom to uatom
-            },
-          ],
+          amount: [{ amount: '5000', denom: 'utoken' }],
           gas: '200000',
         },
-        // EVM fee (gas settings)
         evm: {
-          gasLimit: '100000',
-          gasPrice: '20000000000', // 20 gwei
+          gasLimit: '21000',
+          gasPrice: '20000000000',
         },
       },
     },
     limit: {
-      // how many times each wallet address is allowed in a window(24h)
       address: 1,
-      // how many times each ip is allowed in a window(24h)
       ip: 10,
     },
   },
 };
 
-// Initialize TokenConfigLoader with network config from above
-const networkConfig = {
-  name: config.blockchain.name,
-  chainId: config.blockchain.ids.chainId,
-  cosmosChainId: config.blockchain.ids.cosmosChainId,
-  type: config.blockchain.type,
-};
-
-const tokenLoader = new TokenConfigLoader(networkConfig);
-
-// Populate token amounts from tokens.json
-config.blockchain.tx.amounts = tokenLoader.getAllTokensForConfig();
-
-// Load contract addresses from tokens.json (the source of truth)
-const faucetConfig = tokenLoader.getFaucetConfig();
-config.blockchain.contracts.atomicMultiSend = faucetConfig.atomicMultiSend;
-
-// Secure key management functions
+// Secure key management
 export const initializeSecureKeys = async () => {
-  await secureKeyManager.initialize();
+  await secureKeyManager.initialize({
+    prefix: config.blockchain.sender.option.prefix,
+  });
 
-  // Update config with derived addresses for caching
   const addresses = secureKeyManager.getAddresses();
   config.derivedAddresses = addresses;
 
-  console.log(' Secure keys initialized and cached in config');
+  console.log('Secure keys initialized and cached in config');
 };
 
-// Secure private key access - only accessible within application
 export const getPrivateKey = () => secureKeyManager.getPrivateKeyHex();
 export const getPrivateKeyBytes = () => secureKeyManager.getPrivateKeyBytes();
 export const getPublicKeyBytes = () => secureKeyManager.getPublicKeyBytes();
-
-// Address getters
 export const getEvmAddress = () => secureKeyManager.getEvmAddress();
 export const getCosmosAddress = () => secureKeyManager.getCosmosAddress();
 export const getEvmPublicKey = () => secureKeyManager.getEvmPublicKey();
 
-// Validation function for startup checks
 export const validateDerivedAddresses = (expectedAddresses) => {
   return secureKeyManager.validateAddresses(expectedAddresses);
 };
-
-// Legacy exports for backward compatibility - deprecated, use getEvmAddress() instead
-export const DERIVED_ADDRESS = null; // Deprecated: use getEvmAddress()
-export const DERIVED_PUBLIC_KEY = null; // Deprecated: use getEvmPublicKey()
-export const DERIVED_COSMOS_ADDRESS = null; // Deprecated: use getCosmosAddress()
 
 export default config;

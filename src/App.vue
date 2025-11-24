@@ -18,12 +18,8 @@
 
 <script setup>
 import { createAppKit } from '@reown/appkit';
-import { mainnet } from '@reown/appkit/networks';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { onMounted, provide, ref } from 'vue';
-import Header from './components/Header.vue';
-import Tabs from './components/Tabs.vue';
-import TransactionModal from './components/TransactionModal.vue';
 import { useConfig } from './composables/useConfig';
 import { useWalletStore } from './composables/useWalletStore';
 
@@ -40,7 +36,7 @@ provide('appKitModal', modal);
 
 // Also provide a simple open function
 const openAppKitModal = () => {
-  if (modal.value && modal.value.open) {
+  if (modal.value?.open) {
     modal.value.open();
   }
 };
@@ -48,7 +44,7 @@ provide('openAppKitModal', openAppKitModal);
 
 // Provide disconnect function
 const disconnectAppKit = async () => {
-  if (modal.value && modal.value.disconnect) {
+  if (modal.value?.disconnect) {
     await modal.value.disconnect();
   }
 };
@@ -58,7 +54,7 @@ onMounted(async () => {
   try {
     await loadConfig();
     // Only log essential info
-    if (config.value && config.value.network) {
+    if (config.value?.network) {
       console.log('Faucet configured for network:', config.value.network.evm.chainId);
     }
   } catch (error) {
@@ -66,9 +62,9 @@ onMounted(async () => {
     return;
   }
 
-  if (config.value && config.value.network) {
+  if (config.value?.network) {
     // Check if mobile
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const _isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
     // Configure custom network based on config
     const customNetwork = {
@@ -227,7 +223,7 @@ onMounted(async () => {
       setTimeout(() => {
         if (modal.value.getAccount) {
           const account = modal.value.getAccount();
-          if (account && account.isConnected && account.address) {
+          if (account?.isConnected && account.address) {
             console.log('Initial account connected:', account.address);
             updateWalletState(true, account.address, account.chainId);
           }

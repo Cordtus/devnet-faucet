@@ -1,5 +1,5 @@
+import { resolve } from 'node:path';
 import vue from '@vitejs/plugin-vue';
-import { resolve } from 'path';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
@@ -14,7 +14,7 @@ export default defineConfig({
     stringify: true,
   },
   optimizeDeps: {
-    include: ['@reown/appkit', '@reown/appkit-adapter-wagmi', '@wagmi/vue'],
+    include: ['@reown/appkit', '@reown/appkit-adapter-wagmi'],
     exclude: [],
   },
   build: {

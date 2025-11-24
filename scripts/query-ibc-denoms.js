@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
+import { parseArgs } from 'node:util';
 import fetch from 'node-fetch';
-import { parseArgs } from 'util';
 
 // Parse command line arguments
 const { values: args } = parseArgs({
@@ -64,7 +64,7 @@ async function queryDenomMetadata(denom) {
 
     const data = await response.json();
     return data.metadata;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
@@ -93,7 +93,9 @@ async function main() {
       }
 
       // Determine token name and symbol
-      let name, symbol, decimals;
+      let name;
+      let symbol;
+      let decimals;
 
       if (metadata) {
         name = metadata.name || metadata.display || trace.base_denom;

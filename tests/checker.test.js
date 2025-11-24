@@ -1,6 +1,6 @@
-import fs from 'fs';
-import path from 'path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { FrequencyChecker } from '../checker.js';
 
 describe('FrequencyChecker', () => {
@@ -36,7 +36,7 @@ describe('FrequencyChecker', () => {
       if (fs.existsSync(dbDir)) {
         fs.rmSync(dbDir, { recursive: true, force: true });
       }
-    } catch (err) {
+    } catch (_err) {
       // Ignore cleanup errors
     }
   });

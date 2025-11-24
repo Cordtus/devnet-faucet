@@ -67,7 +67,7 @@
 <script setup>
 import { inject, ref } from 'vue';
 
-const props = defineProps({
+const _props = defineProps({
   walletType: String, // 'cosmos' or 'evm'
 });
 
@@ -83,7 +83,7 @@ const closeModal = () => {
   emit('close');
 };
 
-const connectKeplrMobile = () => {
+const _connectKeplrMobile = () => {
   // For Keplr mobile, we need to use WalletConnect
   // Keplr mobile supports WalletConnect v2
   alert(
@@ -101,10 +101,10 @@ const connectKeplrMobile = () => {
   }
 };
 
-const connectMetaMaskMobile = () => {
+const _connectMetaMaskMobile = () => {
   // For MetaMask mobile, we should use WalletConnect
   // The direct deep link approach often fails due to browser restrictions
-  if (window.ethereum && window.ethereum.isMetaMask) {
+  if (window.ethereum?.isMetaMask) {
     // MetaMask is already available (in-app browser)
     if (openAppKitModal) {
       openAppKitModal();
@@ -128,7 +128,7 @@ const connectMetaMaskMobile = () => {
   }
 };
 
-const connectRabbyMobile = () => {
+const _connectRabbyMobile = () => {
   // Rabby doesn't have a mobile app yet, use WalletConnect
   useWalletConnect();
 };

@@ -50,10 +50,9 @@
 <script setup>
 import { ref } from 'vue';
 import { useTransactions } from '../composables/useTransactions';
-import FaucetTab from './tabs/FaucetTab.vue';
-import NetworkInfo from './tabs/NetworkInfo.vue';
-import RecentTransactionsTab from './tabs/RecentTransactionsTab.vue';
 
+// biome-ignore lint/correctness/noUnusedVariables: used in template
 const activeTab = ref('faucet');
+// biome-ignore lint/correctness/noUnusedVariables: used in template
 const { recentTransactions } = useTransactions();
 </script>

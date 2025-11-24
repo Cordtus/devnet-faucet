@@ -1,5 +1,5 @@
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 describe('faucet application', () => {
@@ -12,72 +12,20 @@ describe('faucet application', () => {
     it('should have required dependency files', () => {
       expect(fs.existsSync(path.join(process.cwd(), 'config.js'))).toBe(true);
       expect(fs.existsSync(path.join(process.cwd(), 'checker.js'))).toBe(true);
-      expect(fs.existsSync(path.join(process.cwd(), 'tokenAllowance.js'))).toBe(true);
-      expect(fs.existsSync(path.join(process.cwd(), 'tokens.json'))).toBe(true);
     });
 
     it('should have src directory with utilities', () => {
       const srcPath = path.join(process.cwd(), 'src');
       expect(fs.existsSync(srcPath)).toBe(true);
       expect(fs.existsSync(path.join(srcPath, 'SecureKeyManager.js'))).toBe(true);
-      expect(fs.existsSync(path.join(srcPath, 'TokenConfigLoader.js'))).toBe(true);
-      expect(fs.existsSync(path.join(srcPath, 'ContractValidator.js'))).toBe(true);
-    });
-  });
-
-  describe('configuration validation', () => {
-    it('should have valid tokens.json', () => {
-      const tokensPath = path.join(process.cwd(), 'tokens.json');
-      const tokensContent = fs.readFileSync(tokensPath, 'utf8');
-      const tokensData = JSON.parse(tokensContent);
-
-      expect(tokensData).toHaveProperty('meta');
-      expect(tokensData).toHaveProperty('tokens');
-      expect(tokensData).toHaveProperty('nativeTokens');
-    });
-
-    it('should have tokens with required fields', () => {
-      const tokensPath = path.join(process.cwd(), 'tokens.json');
-      const tokensData = JSON.parse(fs.readFileSync(tokensPath, 'utf8'));
-
-      if (tokensData.tokens.length > 0) {
-        const token = tokensData.tokens[0];
-        expect(token).toHaveProperty('symbol');
-        expect(token).toHaveProperty('name');
-        expect(token).toHaveProperty('decimals');
-        expect(token).toHaveProperty('contract');
-        expect(token).toHaveProperty('faucet');
-      }
-    });
-
-    it('should have faucet configuration in tokens.json', () => {
-      const tokensPath = path.join(process.cwd(), 'tokens.json');
-      const tokensData = JSON.parse(fs.readFileSync(tokensPath, 'utf8'));
-
-      expect(tokensData.meta).toHaveProperty('faucet');
-      expect(tokensData.meta.faucet).toHaveProperty('atomicMultiSend');
     });
   });
 
   describe('environment requirements', () => {
     it('should check for MNEMONIC environment variable', () => {
       // The app requires MNEMONIC for key management
-      // This test just checks that the env var is either set or we know it's required
-      const hasMnemonic = !!process.env.MNEMONIC;
-
-      // Either it's set, or we're using the test default from setup.js
       expect(typeof process.env.MNEMONIC).toBe('string');
       expect(process.env.MNEMONIC.length).toBeGreaterThan(0);
-    });
-
-    it('should have RPC endpoint configured', () => {
-      expect(process.env.RPC_ENDPOINT).toBeDefined();
-      expect(typeof process.env.RPC_ENDPOINT).toBe('string');
-    });
-
-    it('should have EVM RPC endpoint configured', () => {
-      expect(process.env.EVM_RPC_ENDPOINT).toBeDefined();
-      expect(typeof process.env.EVM_RPC_ENDPOINT).toBe('string');
     });
   });
 
@@ -126,36 +74,7 @@ describe('faucet application', () => {
     });
   });
 
-  describe('smart contracts', () => {
-    it('should have AtomicMultiSend contract', () => {
-      const contractPath = path.join(process.cwd(), 'src', 'AtomicMultiSend.sol');
-      expect(fs.existsSync(contractPath)).toBe(true);
-    });
-
-    it('should have token contracts', () => {
-      const tokensPath = path.join(process.cwd(), 'src', 'tokens');
-      expect(fs.existsSync(tokensPath)).toBe(true);
-
-      // Check for specific token contracts
-      const contracts = ['WBTC.sol', 'PEPE.sol', 'USDT.sol'];
-      contracts.forEach((contract) => {
-        const contractPath = path.join(tokensPath, contract);
-        // Not all may exist, but directory should be there
-      });
-    });
-
-    it('should have foundry configuration', () => {
-      const foundryPath = path.join(process.cwd(), 'foundry.toml');
-      expect(fs.existsSync(foundryPath)).toBe(true);
-    });
-  });
-
-  describe('deployment scripts', () => {
-    it('should have automated deployment script', () => {
-      const deployPath = path.join(process.cwd(), 'scripts', 'automated-deploy.js');
-      expect(fs.existsSync(deployPath)).toBe(true);
-    });
-
+  describe('scripts directory', () => {
     it('should have scripts directory', () => {
       const scriptsPath = path.join(process.cwd(), 'scripts');
       expect(fs.existsSync(scriptsPath)).toBe(true);

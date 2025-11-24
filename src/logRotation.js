@@ -3,8 +3,8 @@
  * Manages log file sizes and rotation to prevent excessive disk usage
  */
 
-import fs, { createWriteStream } from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
 class LogRotation {
   constructor(options = {}) {
@@ -137,9 +137,9 @@ class LogRotation {
    */
   async compressFile(filePath) {
     try {
-      const zlib = await import('zlib');
-      const pipeline = await import('stream').then((m) => m.pipeline);
-      const promisify = await import('util').then((m) => m.promisify);
+      const zlib = await import('node:zlib');
+      const pipeline = await import('node:stream').then((m) => m.pipeline);
+      const promisify = await import('node:util').then((m) => m.promisify);
       const pipelineAsync = promisify(pipeline);
 
       const gzipPath = `${filePath}.gz`;
@@ -193,7 +193,7 @@ class LogRotation {
    * Stop all monitoring
    */
   stopAll() {
-    for (const [logPath, interval] of this.rotationIntervals.entries()) {
+    for (const [_logPath, interval] of this.rotationIntervals.entries()) {
       clearInterval(interval);
     }
     this.rotationIntervals.clear();

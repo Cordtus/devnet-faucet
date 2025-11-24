@@ -122,14 +122,14 @@ const { networkConfig, config } = useConfig();
 const ibcTokens = ref([]);
 const loadingIBC = ref(false);
 const copiedText = ref('');
-const activeNetworkTab = ref('cosmos');
+const _activeNetworkTab = ref('cosmos');
 
-const formatAddress = (address) => {
+const _formatAddress = (address) => {
   if (!address) return '';
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 };
 
-const formatIBCDenom = (denom) => {
+const _formatIBCDenom = (denom) => {
   if (!denom) return '';
   const parts = denom.split('/');
   if (parts.length === 2 && parts[1].length > 8) {
@@ -138,7 +138,7 @@ const formatIBCDenom = (denom) => {
   return denom;
 };
 
-const formatBalance = (amount, decimals = 0) => {
+const _formatBalance = (amount, decimals = 0) => {
   if (!amount || amount === '0') return '0';
 
   try {
@@ -157,7 +157,7 @@ const formatBalance = (amount, decimals = 0) => {
   }
 };
 
-const copyToClipboard = async (text) => {
+const _copyToClipboard = async (text) => {
   if (!text) return;
 
   try {
@@ -209,7 +209,7 @@ const fetchIBCBalances = async () => {
   }
 };
 
-const refreshIBCBalances = () => {
+const _refreshIBCBalances = () => {
   fetchIBCBalances();
 };
 

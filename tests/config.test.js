@@ -80,34 +80,26 @@ describe('config', () => {
       expect(endpoints.evm_endpoint).toMatch(/^https?:\/\//);
     });
 
-    it('should have contracts configuration', () => {
-      expect(config.blockchain).toHaveProperty('contracts');
-      expect(config.blockchain.contracts).toHaveProperty('atomicMultiSend');
-    });
-
-    it('should have sender options', () => {
+    it('should have sender options with prefix', () => {
       expect(config.blockchain.sender).toHaveProperty('option');
       expect(config.blockchain.sender.option).toHaveProperty('hdPaths');
       expect(config.blockchain.sender.option).toHaveProperty('prefix');
-      expect(config.blockchain.sender.option.prefix).toBe('cosmos');
+      expect(typeof config.blockchain.sender.option.prefix).toBe('string');
     });
   });
 
   describe('transaction configuration', () => {
-    it('should have token amounts loaded from TokenConfigLoader', () => {
+    it('should have native token amounts configured', () => {
       expect(config.blockchain.tx).toHaveProperty('amounts');
       expect(Array.isArray(config.blockchain.tx.amounts)).toBe(true);
+      expect(config.blockchain.tx.amounts.length).toBeGreaterThan(0);
 
-      // Should have tokens loaded
-      if (config.blockchain.tx.amounts.length > 0) {
-        const token = config.blockchain.tx.amounts[0];
-        expect(token).toHaveProperty('denom');
-        expect(token).toHaveProperty('symbol');
-        expect(token).toHaveProperty('name');
-        expect(token).toHaveProperty('amount');
-        expect(token).toHaveProperty('erc20_contract');
-        expect(token).toHaveProperty('decimals');
-      }
+      const token = config.blockchain.tx.amounts[0];
+      expect(token).toHaveProperty('denom');
+      expect(token).toHaveProperty('symbol');
+      expect(token).toHaveProperty('name');
+      expect(token).toHaveProperty('amount');
+      expect(token).toHaveProperty('decimals');
     });
 
     it('should have fee configuration for both Cosmos and EVM', () => {
@@ -157,12 +149,13 @@ describe('config', () => {
       expect(evmAddress).toMatch(/^0x[0-9a-fA-F]{40}$/);
     });
 
-    it('should provide Cosmos address getter', async () => {
+    it('should provide Cosmos address getter with configured prefix', async () => {
       await initializeSecureKeys();
       const cosmosAddress = getCosmosAddress();
+      const prefix = config.blockchain.sender.option.prefix;
 
       expect(cosmosAddress).toBeDefined();
-      expect(cosmosAddress).toMatch(/^cosmos1[a-z0-9]{38}$/);
+      expect(cosmosAddress.startsWith(prefix)).toBe(true);
     });
 
     it('should provide private key in hex format', async () => {
@@ -220,50 +213,6 @@ describe('config', () => {
       expect(config.derivedAddresses.evm).toHaveProperty('publicKey');
       expect(config.derivedAddresses.cosmos).toHaveProperty('address');
       expect(config.derivedAddresses.cosmos).toHaveProperty('publicKey');
-    });
-  });
-
-  describe('deprecated exports', () => {
-    it('should have deprecated exports as null', async () => {
-      const configModule = await import('../config.js');
-
-      expect(configModule.DERIVED_ADDRESS).toBeNull();
-      expect(configModule.DERIVED_PUBLIC_KEY).toBeNull();
-      expect(configModule.DERIVED_COSMOS_ADDRESS).toBeNull();
-    });
-  });
-
-  describe('TokenConfigLoader integration', () => {
-    it('should load atomicMultiSend contract address from tokens.json', () => {
-      expect(config.blockchain.contracts.atomicMultiSend).toBeDefined();
-
-      // If atomicMultiSend is set, it should be a valid address
-      if (config.blockchain.contracts.atomicMultiSend) {
-        expect(config.blockchain.contracts.atomicMultiSend).toMatch(/^0x[0-9a-fA-F]{40}$/);
-      }
-    });
-
-    it('should have tokens with proper structure', () => {
-      const amounts = config.blockchain.tx.amounts;
-
-      amounts.forEach((token) => {
-        expect(token).toHaveProperty('denom');
-        expect(token).toHaveProperty('symbol');
-        expect(token).toHaveProperty('name');
-        expect(token).toHaveProperty('amount');
-        expect(token).toHaveProperty('decimals');
-        expect(token).toHaveProperty('erc20_contract');
-        expect(token).toHaveProperty('target_balance');
-
-        // Validate data types
-        expect(typeof token.denom).toBe('string');
-        expect(typeof token.symbol).toBe('string');
-        expect(typeof token.name).toBe('string');
-        expect(typeof token.amount).toBe('string');
-        expect(typeof token.decimals).toBe('number');
-        // erc20_contract can be string or object (for native tokens with wrappers)
-        expect(['string', 'object'].includes(typeof token.erc20_contract)).toBe(true);
-      });
     });
   });
 });

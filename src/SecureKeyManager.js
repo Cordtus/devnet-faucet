@@ -12,10 +12,15 @@ class SecureKeyManager {
     this._keys = new Map();
     this._addressCache = null;
     this._initialized = false;
+    this._prefix = 'cosmos'; // default prefix
   }
 
-  async initialize() {
+  async initialize(options = {}) {
     if (this._initialized) return;
+
+    if (options.prefix) {
+      this._prefix = options.prefix;
+    }
 
     const mnemonic = process.env.MNEMONIC;
     if (!mnemonic) {
@@ -45,7 +50,7 @@ class SecureKeyManager {
     this._addressCache = {
       evm: {
         address: evmAddress,
-        publicKey: '0x' + Buffer.from(publicKeyBytesCompressed).toString('hex'),
+        publicKey: `0x${Buffer.from(publicKeyBytesCompressed).toString('hex')}`,
       },
       cosmos: {
         address: cosmosAddress,
@@ -66,7 +71,7 @@ class SecureKeyManager {
   _deriveEvmAddress(publicKeyBytes) {
     const publicKeyWithoutPrefix = publicKeyBytes.slice(1);
     const addressBytes = keccak_256(publicKeyWithoutPrefix).slice(-20);
-    return '0x' + Buffer.from(addressBytes).toString('hex');
+    return `0x${Buffer.from(addressBytes).toString('hex')}`;
   }
 
   _deriveCosmosAddress(evmAddressHex) {
@@ -74,13 +79,13 @@ class SecureKeyManager {
     // Just encode the EVM address bytes in bech32 format
     const addressBytes = Buffer.from(evmAddressHex.replace('0x', ''), 'hex');
     const words = bech32.toWords(addressBytes);
-    return bech32.encode('cosmos', words);
+    return bech32.encode(this._prefix, words);
   }
 
   getPrivateKeyHex() {
     this._ensureInitialized();
     const privateKey = this._keys.get('privateKey');
-    return '0x' + Buffer.from(privateKey).toString('hex');
+    return `0x${Buffer.from(privateKey).toString('hex')}`;
   }
 
   getPrivateKeyBytes() {
@@ -134,7 +139,7 @@ class SecureKeyManager {
     }
 
     if (errors.length > 0) {
-      throw new Error('Address validation failed:\n' + errors.join('\n'));
+      throw new Error(`Address validation failed:\n${errors.join('\n')}`);
     }
 
     console.log(' Address validation successful');

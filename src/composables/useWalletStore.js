@@ -102,7 +102,7 @@ export function useWalletStore() {
       }
     } catch (error) {
       console.error('Error connecting to Keplr:', error);
-      alert('Failed to connect to Keplr: ' + error.message);
+      alert(`Failed to connect to Keplr: ${error.message}`);
     } finally {
       state.cosmosWallet.connecting = false;
     }

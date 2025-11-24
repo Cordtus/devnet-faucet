@@ -3,8 +3,8 @@
  * Prevents abuse by tracking IP addresses and wallet addresses
  */
 
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
 export class FrequencyChecker {
   constructor(config) {

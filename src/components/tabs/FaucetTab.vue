@@ -186,40 +186,50 @@ import { computed, inject, ref } from 'vue';
 import { useConfig } from '../../composables/useConfig';
 import { useTransactions } from '../../composables/useTransactions';
 import { useWalletStore } from '../../composables/useWalletStore';
-import FaucetBalances from '../FaucetBalances.vue';
 
+// biome-ignore lint/correctness/noUnusedVariables: disconnectKeplr used in template
 const { cosmosWallet, evmWallet, connectKeplr, disconnectKeplr, disconnectEvm } = useWalletStore();
-const { networkConfig, config } = useConfig();
+const { config } = useConfig();
 const { addTransactionToHistory } = useTransactions();
 
 // Inject the AppKit modal
-const modal = inject('appKitModal');
 const openAppKitModal = inject('openAppKitModal');
 const disconnectAppKit = inject('disconnectAppKit');
 
 const address = ref('');
 const message = ref('');
 const isLoading = ref(false);
+// biome-ignore lint/correctness/noUnusedVariables: used in template
 const hoveringWallet = ref('');
+
+const bech32Prefix = computed(() => {
+  return (
+    config.value?.network?.cosmos?.prefix ||
+    config.value?.blockchain?.sender?.option?.prefix ||
+    'cosmos'
+  );
+});
 
 const isValidAddress = computed(() => {
   if (!address.value) return false;
+  const prefix = bech32Prefix.value;
   return (
-    address.value.startsWith('cosmos') ||
+    address.value.startsWith(prefix) ||
     (address.value.startsWith('0x') && address.value.length === 42)
   );
 });
 
 const addressType = computed(() => {
   if (!address.value) return '';
-  return address.value.startsWith('cosmos') ? 'Cosmos' : 'EVM';
+  const prefix = bech32Prefix.value;
+  return address.value.startsWith(prefix) ? 'Bech32' : 'EVM';
 });
 
-const hasConnectedWallets = computed(() => {
+const _hasConnectedWallets = computed(() => {
   return cosmosWallet.connected || evmWallet.connected;
 });
 
-const addressMatchesWallet = computed(() => {
+const _addressMatchesWallet = computed(() => {
   if (!address.value) return false;
   return (
     (cosmosWallet.connected && address.value === cosmosWallet.address) ||
@@ -227,24 +237,24 @@ const addressMatchesWallet = computed(() => {
   );
 });
 
-const connectedWalletType = computed(() => {
+const _connectedWalletType = computed(() => {
   if (cosmosWallet.connected && address.value === cosmosWallet.address) return 'Keplr';
   if (evmWallet.connected && address.value === evmWallet.address) return 'EVM Wallet';
   return '';
 });
 
-const formatAddress = (addr) => {
+const _formatAddress = (addr) => {
   if (!addr) return '';
-  return addr.slice(0, 6) + '...' + addr.slice(-4);
+  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 };
 
-const useCosmosAddress = () => {
+const _useCosmosAddress = () => {
   if (cosmosWallet.connected && cosmosWallet.address) {
     address.value = cosmosWallet.address;
   }
 };
 
-const useEvmAddress = () => {
+const _useEvmAddress = () => {
   if (evmWallet.connected && evmWallet.address) {
     address.value = evmWallet.address;
   }
@@ -254,7 +264,7 @@ const isMobile = () => {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 };
 
-const handleCosmosConnect = async () => {
+const _handleCosmosConnect = async () => {
   if (isMobile()) {
     // Check if we're in Keplr's in-app browser
     if (window.keplr) {
@@ -262,8 +272,8 @@ const handleCosmosConnect = async () => {
       await connectKeplr(config.value?.network);
     } else {
       // For mobile, just provide clear instructions since chain might not be recognized
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-      const isAndroid = /Android/i.test(navigator.userAgent);
+      const _isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const _isAndroid = /Android/i.test(navigator.userAgent);
 
       // Show instructions
       message.value = `
@@ -276,28 +286,28 @@ const handleCosmosConnect = async () => {
           <ol class="mb-3">
             <li>Open the Keplr app</li>
             <li>Select your wallet</li>
-            <li>Copy your Cosmos address</li>
+            <li>Copy your wallet address</li>
             <li>Return here and paste it in the wallet address field above</li>
           </ol>
-          
+
           <div class="d-grid gap-2 mb-3">
-            <button class="btn btn-primary btn-sm" onclick="navigator.clipboard.readText().then(text => { 
+            <button class="btn btn-primary btn-sm" onclick="navigator.clipboard.readText().then(text => {
               const input = document.querySelector('input[placeholder*=cosmos]');
-              if (input && text.startsWith('cosmos')) {
+              if (input && (text.startsWith('cosmos') || text.startsWith('0x'))) {
                 input.value = text;
                 input.dispatchEvent(new Event('input', { bubbles: true }));
               } else {
-                alert('Please copy a Cosmos address from Keplr first');
+                alert('Please copy a valid wallet address first');
               }
             }).catch(() => alert('Please paste your address manually'))">
               <i class="fas fa-paste me-2"></i>
               Paste Address from Clipboard
             </button>
           </div>
-          
+
           <p class="mb-0 small text-muted">
             <i class="fas fa-info-circle me-1"></i>
-            This devnet chain may not be listed in Keplr. Just copy any Cosmos address.
+            This devnet chain may not be listed in Keplr. Just copy your address manually.
           </p>
           
           <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -309,7 +319,7 @@ const handleCosmosConnect = async () => {
   }
 };
 
-const handleEvmConnect = () => {
+const _handleEvmConnect = () => {
   // For both mobile and desktop, use the WalletConnect modal
   // which handles mobile wallets properly
   openModal();
@@ -319,7 +329,7 @@ const openModal = () => {
   if (openAppKitModal) {
     try {
       // Check for wallet conflicts before opening
-      if (window.ethereum && window.ethereum.providers && window.ethereum.providers.length > 1) {
+      if (window.ethereum?.providers && window.ethereum.providers.length > 1) {
         console.warn('Multiple wallet providers detected:', window.ethereum.providers.length);
         // Still try to open - the user can select their preferred wallet
       }
@@ -327,7 +337,7 @@ const openModal = () => {
     } catch (error) {
       console.error('Error opening modal:', error);
       // Provide more helpful error message
-      if (error.message && error.message.includes('providers')) {
+      if (error.message?.includes('providers')) {
         alert(
           'Multiple wallet extensions detected. Please disable all but one wallet extension and try again.'
         );
@@ -340,14 +350,14 @@ const openModal = () => {
   }
 };
 
-const handleEvmDisconnect = async () => {
+const _handleEvmDisconnect = async () => {
   if (disconnectAppKit) {
     await disconnectAppKit();
   }
   disconnectEvm();
 };
 
-const requestToken = async () => {
+const _requestToken = async () => {
   if (!isValidAddress.value) {
     message.value = `
       <div class="alert alert-warning">
@@ -377,10 +387,7 @@ const requestToken = async () => {
     let txHash = null;
     if (isSuccess && data.result) {
       txHash =
-        data.result.transaction_hash ||
-        data.result.hash ||
-        (data.result.transactions && data.result.transactions[0]) ||
-        null;
+        data.result.transaction_hash || data.result.hash || data.result.transactions?.[0] || null;
     }
 
     addTransactionToHistory({
@@ -407,11 +414,11 @@ const requestToken = async () => {
 
       // Check if there's a custom message from the backend
       const customMessage = data.result?.message;
-      const hasIneligibleTokens =
+      const _hasIneligibleTokens =
         data.result?.ineligible_tokens && data.result.ineligible_tokens.length > 0;
 
       let messageContent = '';
-      if (customMessage && customMessage.includes('ERC20 tokens')) {
+      if (customMessage?.includes('ERC20 tokens')) {
         // For Cosmos addresses that can't receive ERC20 tokens
         messageContent = `
           <div class="alert alert-warning alert-dismissible show fade" role="alert">

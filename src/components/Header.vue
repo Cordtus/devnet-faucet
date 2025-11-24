@@ -3,12 +3,12 @@
     <div class="container">
       <div class="d-flex justify-content-between align-items-center">
         <div class="brand-container">
-          <h1 class="brand-logo">cosmos-evm</h1>
-          <span class="brand-subtitle">DEVNET-1</span>
+          <h1 class="brand-logo">faucet</h1>
+          <span class="brand-subtitle">DEVNET</span>
         </div>
         <nav class="nav-icons">
           <a
-            href="https://cosmos-docs.mintlify.app/docs"
+            href="#"
             target="_blank"
             class="nav-link"
             title="Documentation"
@@ -23,7 +23,7 @@
             </span>
           </a>
           <a
-            href="https://cosmos.network"
+            href="#"
             target="_blank"
             class="nav-link"
             title="Network"
@@ -37,7 +37,7 @@
             </span>
           </a>
           <a
-            href="https://discord.gg/interchain"
+            href="#"
             target="_blank"
             class="nav-link"
             title="Discord"
@@ -50,7 +50,7 @@
             </span>
           </a>
           <a
-            href="https://github.com/cosmos/evm"
+            href="#"
             target="_blank"
             class="nav-link"
             title="GitHub"
@@ -74,8 +74,10 @@ import { computed } from 'vue';
 import { useConfig } from '../composables/useConfig';
 
 const { config } = useConfig();
-const projectName = computed(() => config.value?.project?.name || 'Cosmos EVM Faucet');
+// biome-ignore lint/correctness/noUnusedVariables: used in template
+const projectName = computed(() => config.value?.project?.name || 'Devnet Faucet');
 // Version will be updated with each deployment
+// biome-ignore lint/correctness/noUnusedVariables: used in template
 const version = '1.1.0';
 </script>
 

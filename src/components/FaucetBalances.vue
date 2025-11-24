@@ -148,37 +148,6 @@
       </div>
     </div>
 
-    <!-- Help Tip (shown below tokens) -->
-    <div class="help-tip mt-4" v-if="addressType === 'evm'">
-      <div class="help-icon">
-        <i class="fas fa-info-circle"></i>
-      </div>
-      <div class="help-content">
-        <h6 class="mb-2">About WATOM</h6>
-        <p class="mb-0">
-          WATOM represents native ATOM on the EVM side. It's the same token that powers both Cosmos and EVM transactions,
-          displayed with ATOM's standard 6 decimal precision. Whether you check your balance as "native" or "ERC20",
-          you'll see the same ATOM amount.
-        </p>
-      </div>
-    </div>
-    
-    <!-- Help Tip for Cosmos addresses -->
-    <div class="help-tip mt-4" v-if="addressType === 'cosmos' && address && isValid">
-      <div class="help-icon">
-        <i class="fas fa-info-circle"></i>
-      </div>
-      <div class="help-content">
-        <h6 class="mb-2">Available Tokens for Cosmos Addresses</h6>
-        <p class="mb-2">
-          Cosmos addresses can receive native tokens (ATOM, IBC OSMO, IBC USDC) through the faucet.
-        </p>
-        <p class="mb-0">
-          <strong>Note:</strong> ERC20 tokens (WBTC, PEPE, USDT) are only available to EVM (0x...) addresses. 
-          Connect an EVM wallet to receive these tokens.
-        </p>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -198,50 +167,27 @@ const loadingBalances = ref(false);
 const copiedAddress = ref('');
 const expandedTokens = ref({});
 
-const addressType = computed(() => {
-  if (!props.address) return '';
-  return props.address.startsWith('cosmos') ? 'cosmos' : 'evm';
+const bech32Prefix = computed(() => {
+  return (
+    config.value?.network?.cosmos?.prefix ||
+    config.value?.blockchain?.sender?.option?.prefix ||
+    'cosmos'
+  );
 });
 
-// Show appropriate tokens based on address type
-const allTokens = computed(() => {
+const addressType = computed(() => {
+  if (!props.address) return '';
+  return props.address.startsWith(bech32Prefix.value) ? 'cosmos' : 'evm';
+});
+
+// Show available tokens from config
+const _allTokens = computed(() => {
   if (!config.value || !config.value.tokens) return [];
-
-  let tokens = [...config.value.tokens];
-
-  if (addressType.value === 'evm') {
-    // For EVM addresses: hide native ATOM, show WATOM instead
-    tokens = tokens.filter((t) => t.denom !== 'uatom');
-
-    // Find native ATOM token to create WATOM display
-    const atomToken = config.value.tokens.find((t) => t.denom === 'uatom');
-    if (atomToken) {
-      // Add WATOM as the EVM representation of ATOM
-      tokens.push({
-        ...atomToken,
-        denom: 'watom',
-        symbol: 'WATOM',
-        name: 'Wrapped ATOM',
-        type: 'wrapped',
-        decimals: 6, // Using ATOM's native 6 decimals for cleaner display
-        contract: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // Native token placeholder
-        description: 'Native ATOM on EVM (direct substitute for ETH)',
-        isWrappedDisplay: true, // Flag to indicate this is ATOM for EVM
-      });
-    }
-  }
-
-  return tokens;
+  return [...config.value.tokens];
 });
 
 const getTokenStatus = (token) => {
   if (!props.address || !props.isValid) return 'neutral';
-
-  // WATOM display token always shows the same status as ATOM
-  if (token.isWrappedDisplay) {
-    const atomToken = config.value.tokens.find((t) => t.denom === 'uatom');
-    if (atomToken) return getTokenStatus(atomToken);
-  }
 
   // Check if token is compatible with address type
   const isCompatible = isTokenCompatible(token);
@@ -268,36 +214,12 @@ const getTokenStatus = (token) => {
   return 'available';
 };
 
-const isTokenCompatible = (token) => {
-  if (!addressType.value) return true;
-
-  if (addressType.value === 'cosmos') {
-    // Cosmos addresses can only receive native tokens (not ERC20)
-    // Native tokens are identified by not having an ERC20 contract or having special placeholder addresses
-    return (
-      !token.contract ||
-      token.contract === '0x0000000000000000000000000000000000000000' ||
-      token.contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
-    );
-  } else if (addressType.value === 'evm') {
-    // EVM addresses can only receive:
-    // 1. ERC20 tokens (have a real contract address)
-    // 2. Native ATOM (special case, shown as WATOM)
-    // But NOT IBC tokens (they don't have ERC20 interfaces yet)
-
-    // IBC tokens are identified by having an ibc/ denom
-    if (token.denom && token.denom.startsWith('ibc/')) {
-      return false;
-    }
-
-    // Allow native ATOM and tokens with real ERC20 contracts
-    return true;
-  }
-
-  return false;
+const isTokenCompatible = (_token) => {
+  // All native tokens are compatible with both address types
+  return true;
 };
 
-const getTokenStatusClass = (token) => {
+const _getTokenStatusClass = (token) => {
   const status = getTokenStatus(token);
   const claimPercentage = getClaimPercentage(token);
 
@@ -328,48 +250,34 @@ const getTokenStatusClass = (token) => {
   return { 'status-minimal': true };
 };
 
-const isNativeToken = (token) => {
-  return (
-    token.denom === 'uatom' &&
-    (!token.contract || token.contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE')
-  );
+const _isNativeToken = (token) => {
+  return token.type === 'native' || !token.contract;
 };
 
 const getTokenSymbol = (token) => {
-  // Always show the token's actual symbol
-  // The WATOM conversion happens on the backend for EVM addresses
   return token.symbol || token.denom;
 };
 
-const getTokenName = (token) => {
-  // Show actual token name - backend handles WATOM conversion
+const _getTokenName = (token) => {
   return token.name || '';
 };
 
 const getTokenType = (token) => {
-  if (token.type === 'wrapped') return 'Wrapped';
-  if (token.type === 'ibc') return 'IBC';
-  if (token.type === 'erc20') return 'ERC20';
-  if (token.denom === 'uatom') return 'Native';
-  if (token.type === 'native') return 'Native';
-  return token.type || 'Unknown';
+  return token.type || 'Native';
 };
 
-const getTokenTypeBadgeClass = (token) => {
+const _getTokenTypeBadgeClass = (token) => {
   const type = getTokenType(token);
-  if (type === 'Native') return 'badge-native';
-  if (type === 'Wrapped') return 'badge-wrapped';
-  if (type === 'ERC20') return 'badge-erc20';
-  if (type === 'IBC') return 'badge-ibc';
+  if (type === 'native' || type === 'Native') return 'badge-native';
   return 'badge-default';
 };
 
-const formatContractAddress = (address) => {
+const _formatContractAddress = (address) => {
   if (!address) return '';
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 };
 
-const formatIbcDenom = (denom) => {
+const _formatIbcDenom = (denom) => {
   if (!denom) return '';
   const parts = denom.split('/');
   if (parts.length === 2 && parts[1].length > 8) {
@@ -378,7 +286,7 @@ const formatIbcDenom = (denom) => {
   return denom;
 };
 
-const formatTokenAmount = (token) => {
+const _formatTokenAmount = (token) => {
   const amount = token.target_balance || token.amount || 0;
   const formatted = formatBalance(amount, token.decimals || 0);
   const symbol = getTokenSymbol(token);
@@ -415,7 +323,7 @@ const getClaimableAmountRaw = (token) => {
   return Math.max(0, remaining);
 };
 
-const formatClaimableAmount = (token) => {
+const _formatClaimableAmount = (token) => {
   const claimable = getClaimableAmountRaw(token);
   const target = Number.parseFloat(token.target_balance || token.amount || 0);
   const formattedClaimable = formatBalance(claimable, token.decimals || 0);
@@ -431,46 +339,14 @@ const formatClaimableAmount = (token) => {
   return `${formattedClaimable}/${formattedTarget} ${symbol}`;
 };
 
-const getHoverClass = (token) => {
+const _getHoverClass = (_token) => {
   if (!props.hoveringWallet) return '';
-
-  // Check if this token would be eligible for the hovering wallet
-  const hoveringAddressType = props.hoveringWallet.startsWith('cosmos') ? 'cosmos' : 'evm';
-
-  // Check compatibility
-  if (hoveringAddressType === 'cosmos') {
-    // Cosmos addresses can only receive native tokens
-    const isCompatible =
-      !token.contract ||
-      token.contract === '0x0000000000000000000000000000000000000000' ||
-      token.contract === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
-    return isCompatible ? 'token-hover-eligible' : '';
-  } else if (hoveringAddressType === 'evm') {
-    // EVM addresses cannot receive IBC tokens yet
-    if (token.denom && token.denom.startsWith('ibc/')) {
-      return '';
-    }
-    return 'token-hover-eligible';
-  }
-
-  return '';
+  // All native tokens are eligible for both address types
+  return 'token-hover-eligible';
 };
 
-const getIncompatibleReason = (token) => {
-  if (
-    addressType.value === 'cosmos' &&
-    token.contract &&
-    token.contract !== '0x0000000000000000000000000000000000000000' &&
-    token.contract !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
-  ) {
-    return 'ERC20 tokens require EVM address';
-  }
-
-  if (addressType.value === 'evm' && token.denom && token.denom.startsWith('ibc/')) {
-    return 'IBC tokens not yet available for EVM wallets';
-  }
-
-  return `Not available for ${addressType.value}`;
+const _getIncompatibleReason = (_token) => {
+  return 'Token not available';
 };
 
 const formatBalance = (amount, decimals = 0) => {
@@ -492,11 +368,11 @@ const formatBalance = (amount, decimals = 0) => {
   }
 };
 
-const toggleTokenExpansion = (denom) => {
+const _toggleTokenExpansion = (denom) => {
   expandedTokens.value[denom] = !expandedTokens.value[denom];
 };
 
-const copyToClipboard = async (text) => {
+const _copyToClipboard = async (text) => {
   try {
     await navigator.clipboard.writeText(text);
     copiedAddress.value = text;
@@ -521,19 +397,9 @@ const fetchBalances = async () => {
     if (data.balances) {
       // Create a map of balances by denom
       data.balances.forEach((balance) => {
-        // Normalize denom to lowercase for consistent lookup
         const normalizedDenom = balance.denom.toLowerCase();
-
-        // Special handling for WATOM -> uatom mapping
-        if (normalizedDenom === 'watom') {
-          tokenBalances.value['uatom'] = balance;
-        } else {
-          tokenBalances.value[normalizedDenom] = balance;
-        }
+        tokenBalances.value[normalizedDenom] = balance;
       });
-
-      // Debug log to verify balance loading
-      console.log('Loaded token balances:', tokenBalances.value);
     }
   } catch (error) {
     console.error('Error fetching balances:', error);
@@ -673,21 +539,6 @@ onMounted(() => {
 .badge-native {
   background: rgba(80, 100, 251, 0.1);
   color: var(--cosmos-secondary);
-}
-
-.badge-wrapped {
-  background: rgba(128, 100, 251, 0.1);
-  color: var(--cosmos-secondary);
-}
-
-.badge-erc20 {
-  background: rgba(0, 210, 255, 0.1);
-  color: var(--cosmos-accent);
-}
-
-.badge-ibc {
-  background: rgba(46, 46, 84, 0.1);
-  color: var(--cosmos-primary);
 }
 
 .badge-default {
