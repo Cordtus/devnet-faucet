@@ -96,7 +96,7 @@ function detectAddressType(address) {
 }
 
 // Convert hex address to Cosmos bech32
-function _hexToCosmosAddress(hexAddress) {
+function hexToCosmosAddress(hexAddress) {
   try {
     const addressBytes = Buffer.from(hexAddress.slice(2), 'hex');
     const words = bech32.toWords(addressBytes);
@@ -108,7 +108,7 @@ function _hexToCosmosAddress(hexAddress) {
 }
 
 // Convert Cosmos bech32 to hex
-function _cosmosAddressToHex(cosmosAddress) {
+function cosmosAddressToHex(cosmosAddress) {
   try {
     const { words } = bech32.decode(cosmosAddress);
     const addressBytes = Buffer.from(bech32.fromWords(words));
@@ -119,15 +119,29 @@ function _cosmosAddressToHex(cosmosAddress) {
   }
 }
 
-// Get recipient balance for threshold checking
-async function getRecipientBalance(address, type) {
+// Get the alternate address format (EVM <-> Cosmos)
+function getAlternateAddress(address, type) {
+  if (type === 'evm') {
+    return hexToCosmosAddress(address);
+  }
+  return cosmosAddressToHex(address);
+}
+
+// Get balance via EVM RPC
+async function getEvmBalance(address) {
   try {
-    if (type === 'evm') {
-      const ethProvider = new JsonRpcProvider(chainConf.endpoints.evm_endpoint);
-      const balance = await ethProvider.getBalance(address);
-      return BigInt(balance.toString());
-    }
-    // Cosmos balance check
+    const ethProvider = new JsonRpcProvider(chainConf.endpoints.evm_endpoint);
+    const balance = await ethProvider.getBalance(address);
+    return BigInt(balance.toString());
+  } catch (error) {
+    console.error('Error getting EVM balance:', error);
+    return null;
+  }
+}
+
+// Get balance via Cosmos REST
+async function getCosmosBalance(address) {
+  try {
     const restEndpoint = chainConf.endpoints.rest_endpoint;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -138,7 +152,7 @@ async function getRecipientBalance(address, type) {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      return BigInt(0);
+      return null;
     }
 
     const data = await response.json();
@@ -148,9 +162,34 @@ async function getRecipientBalance(address, type) {
     }
     return BigInt(0);
   } catch (error) {
-    console.error('Error getting recipient balance:', error);
-    return BigInt(0);
+    console.error('Error getting Cosmos balance:', error);
+    return null;
   }
+}
+
+// Get recipient balance with fallback to alternate address type
+async function getRecipientBalance(address, type) {
+  const alternateAddress = getAlternateAddress(address, type);
+
+  // Try primary method first
+  let balance = null;
+  if (type === 'evm') {
+    balance = await getEvmBalance(address);
+    // Fallback to Cosmos query using converted address
+    if (balance === null && alternateAddress) {
+      console.log(`EVM balance check failed, trying Cosmos fallback for ${alternateAddress}`);
+      balance = await getCosmosBalance(alternateAddress);
+    }
+  } else {
+    balance = await getCosmosBalance(address);
+    // Fallback to EVM query using converted address
+    if (balance === null && alternateAddress) {
+      console.log(`Cosmos balance check failed, trying EVM fallback for ${alternateAddress}`);
+      balance = await getEvmBalance(alternateAddress);
+    }
+  }
+
+  return balance ?? BigInt(0);
 }
 
 // Get account info from REST API
@@ -417,6 +456,13 @@ app.get('/send/:address', async (req, res) => {
     return;
   }
 
+  // Get the alternate address format (same underlying account)
+  const alternateAddress = getAlternateAddress(address, addressType);
+  const addresses = {
+    evm: addressType === 'evm' ? address : alternateAddress,
+    cosmos: addressType === 'cosmos' ? address : alternateAddress,
+  };
+
   try {
     // Check recipient balance against threshold
     const recipientBalance = await getRecipientBalance(address, addressType);
@@ -433,6 +479,7 @@ app.get('/send/:address', async (req, res) => {
           code: -2,
           message: 'Balance threshold exceeded',
           details: `Address ${address} already has ${balanceFormatted} ${tokenSymbol}. Faucet only tops up wallets below ${thresholdFormatted} ${tokenSymbol}.`,
+          addresses,
         },
       });
       return;
@@ -453,6 +500,7 @@ app.get('/send/:address', async (req, res) => {
         code: 0,
         status: 'success',
         message: 'Tokens sent successfully!',
+        addresses,
         ...txResult,
       },
     });
@@ -463,6 +511,7 @@ app.get('/send/:address', async (req, res) => {
         code: -1,
         message: error.message || 'Transaction failed',
         error: error.toString(),
+        addresses,
       },
     });
   }
