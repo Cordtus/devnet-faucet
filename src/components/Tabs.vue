@@ -49,10 +49,10 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useTransactions } from '../composables/useTransactions';
 import FaucetTab from './tabs/FaucetTab.vue';
 import NetworkInfo from './tabs/NetworkInfo.vue';
 import RecentTransactionsTab from './tabs/RecentTransactionsTab.vue';
-import { useTransactions } from '../composables/useTransactions';
 
 const activeTab = ref('faucet');
 const { recentTransactions } = useTransactions();

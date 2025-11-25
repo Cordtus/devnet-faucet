@@ -183,10 +183,10 @@
 
 <script setup>
 import { computed, inject, ref } from 'vue';
-import FaucetBalances from '../FaucetBalances.vue';
 import { useConfig } from '../../composables/useConfig';
 import { useTransactions } from '../../composables/useTransactions';
 import { useWalletStore } from '../../composables/useWalletStore';
+import FaucetBalances from '../FaucetBalances.vue';
 
 const { cosmosWallet, evmWallet, connectKeplr, disconnectKeplr, disconnectEvm } = useWalletStore();
 const { config } = useConfig();

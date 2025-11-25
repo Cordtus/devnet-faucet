@@ -3,9 +3,6 @@ import secureKeyManager from './src/SecureKeyManager.js';
 
 const config = {
   port: 8088,
-  db: {
-    path: '.faucet/history.db',
-  },
   project: {
     name: 'Republic Devnet Faucet',
     logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/cosmoshub/images/atom.svg',
@@ -56,10 +53,8 @@ const config = {
         },
       },
     },
-    limit: {
-      address: 1,
-      ip: 10,
-    },
+    // Balance threshold: only top up wallets below this amount (10 tokens with 18 decimals)
+    balanceThreshold: '10000000000000000000',
   },
 };
 

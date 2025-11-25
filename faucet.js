@@ -16,7 +16,6 @@ import { JsonRpcProvider, Wallet } from 'ethers';
 import express from 'express';
 import Long from 'long';
 import fetch from 'node-fetch';
-import { FrequencyChecker } from './checker.js';
 import conf, {
   getCosmosAddress,
   getEvmAddress,
@@ -29,7 +28,6 @@ import logRotation from './src/logRotation.js';
 
 const app = express();
 const chainConf = conf.blockchain;
-const checker = new FrequencyChecker(conf);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -97,27 +95,37 @@ function detectAddressType(address) {
   return 'unknown';
 }
 
-// Convert hex address to Cosmos bech32
-function _hexToCosmosAddress(hexAddress) {
+// Get recipient balance for threshold checking
+async function getRecipientBalance(address, type) {
   try {
-    const addressBytes = Buffer.from(hexAddress.slice(2), 'hex');
-    const words = bech32.toWords(addressBytes);
-    return bech32.encode(conf.blockchain.sender.option.prefix, words);
-  } catch (error) {
-    console.error('Error converting hex to cosmos address:', error);
-    return null;
-  }
-}
+    if (type === 'evm') {
+      const ethProvider = new JsonRpcProvider(chainConf.endpoints.evm_endpoint);
+      const balance = await ethProvider.getBalance(address);
+      return BigInt(balance.toString());
+    }
+    // Cosmos balance check
+    const restEndpoint = chainConf.endpoints.rest_endpoint;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-// Convert Cosmos bech32 to hex
-function _cosmosAddressToHex(cosmosAddress) {
-  try {
-    const { words } = bech32.decode(cosmosAddress);
-    const addressBytes = Buffer.from(bech32.fromWords(words));
-    return `0x${addressBytes.toString('hex')}`;
+    const response = await fetch(`${restEndpoint}/cosmos/bank/v1beta1/balances/${address}`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return BigInt(0);
+    }
+
+    const data = await response.json();
+    if (data.balances && Array.isArray(data.balances)) {
+      const tokenBalance = data.balances.find((b) => b.denom === chainConf.tx.amounts[0]?.denom);
+      return BigInt(tokenBalance?.amount || '0');
+    }
+    return BigInt(0);
   } catch (error) {
-    console.error('Error converting cosmos to hex address:', error);
-    return null;
+    console.error('Error getting recipient balance:', error);
+    return BigInt(0);
   }
 }
 
@@ -261,7 +269,7 @@ app.get('/config.json', (_req, res) => {
       endpoints: chainConf.endpoints,
       ids: chainConf.ids,
       sender: { option: { prefix: chainConf.sender.option.prefix } },
-      limit: chainConf.limit,
+      balanceThreshold: chainConf.balanceThreshold,
     },
     tokens: chainConf.tx.amounts.map((token) => ({
       denom: token.denom,
@@ -368,13 +376,8 @@ app.get('/balance/:type', async (req, res) => {
 // Main faucet endpoint
 app.get('/send/:address', async (req, res) => {
   const { address } = req.params;
-  const ip =
-    req.headers['cf-connecting-ip'] ||
-    req.headers['x-real-ip'] ||
-    req.headers['X-Forwarded-For'] ||
-    req.ip;
 
-  console.log(`[FAUCET] Token request - Address: ${address}, IP: ${ip}`);
+  console.log(`[FAUCET] Token request - Address: ${address}`);
 
   if (!address) {
     res.send({ result: 'Address is required!' });
@@ -391,22 +394,21 @@ app.get('/send/:address', async (req, res) => {
   }
 
   try {
-    const addressOk = await checker.checkAddress(address, 'dual');
-    const ipOk = await checker.checkIp(`dual${ip}`, 'dual');
+    // Check recipient balance against threshold
+    const recipientBalance = await getRecipientBalance(address, addressType);
+    const threshold = BigInt(chainConf.balanceThreshold);
+    const tokenSymbol = chainConf.tx.amounts[0]?.symbol || 'tokens';
+    const decimals = chainConf.tx.amounts[0]?.decimals || 18;
 
-    if (!addressOk || !ipOk) {
-      const addressLimitMsg = !addressOk
-        ? `Address ${address} has reached the daily limit (${chainConf.limit.address} request per 24h).`
-        : '';
-      const ipLimitMsg = !ipOk
-        ? `IP ${ip} has reached the daily limit (${chainConf.limit.ip} requests per 24h).`
-        : '';
+    if (recipientBalance >= threshold) {
+      const balanceFormatted = (Number(recipientBalance) / 10 ** decimals).toFixed(4);
+      const thresholdFormatted = (Number(threshold) / 10 ** decimals).toFixed(0);
 
       res.send({
         result: {
           code: -2,
-          message: 'Rate limit exceeded',
-          details: [addressLimitMsg, ipLimitMsg].filter((msg) => msg).join(' '),
+          message: 'Balance threshold exceeded',
+          details: `Address ${address} already has ${balanceFormatted} ${tokenSymbol}. Faucet only tops up wallets below ${thresholdFormatted} ${tokenSymbol}.`,
         },
       });
       return;
