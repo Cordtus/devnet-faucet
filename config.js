@@ -7,47 +7,47 @@ const config = {
     path: '.faucet/history.db',
   },
   project: {
-    name: 'Devnet Faucet',
+    name: 'Republic Devnet Faucet',
     logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/cosmoshub/images/atom.svg',
-    deployer: '<a href="#">Your Project</a>',
+    deployer: '<a href="https://republicai.io">Republic AI</a>',
   },
   blockchain: {
-    name: 'devnet',
+    name: 'republic',
     type: 'DualEnvironment',
     ids: {
-      chainId: 1234, // EVM chain ID
-      cosmosChainId: 'chain-1', // Cosmos chain ID
+      chainId: 4231,
+      cosmosChainId: 'republic_77701-1',
     },
     endpoints: {
-      rpc_endpoint: 'https://rpc.yourchain.com:26657',
-      grpc_endpoint: 'rpc.yourchain.com:9090',
-      rest_endpoint: 'https://rpc.yourchain.com:1317',
-      evm_endpoint: 'https://rpc.yourchain.com:8545',
-      evm_websocket: 'wss://rpc.yourchain.com:8546',
-      evm_explorer: 'https://explorer.yourchain.com',
-      cosmos_explorer: 'https://explorer.yourchain.com',
+      rpc_endpoint: 'https://rpc.republicai.io:26657',
+      grpc_endpoint: 'rpc.republicai.io:9090',
+      rest_endpoint: 'https://rpc.republicai.io:1317',
+      evm_endpoint: 'https://rpc.republicai.io:8545',
+      evm_websocket: 'wss://rpc.republicai.io:8546',
+      evm_explorer: 'https://yaci-explorer.fly.dev',
+      cosmos_explorer: 'https://yaci-explorer.fly.dev',
     },
     sender: {
       option: {
         hdPaths: [stringToPath("m/44'/60'/0'/0/0")],
-        prefix: 'cosmos',
+        prefix: 'republic',
       },
     },
     tx: {
       // Native token configuration
       amounts: [
         {
-          denom: 'utoken',
-          symbol: 'TOKEN',
-          name: 'Native Token',
-          amount: '1000000000000000000', // 1 TOKEN (18 decimals)
+          denom: 'arai',
+          symbol: 'RAI',
+          name: 'Republic AI',
+          amount: '1000000000000000000', // 1 RAI (18 decimals)
           decimals: 18,
-          display_denom: 'TOKEN',
+          display_denom: 'RAI',
         },
       ],
       fee: {
         cosmos: {
-          amount: [{ amount: '5000', denom: 'utoken' }],
+          amount: [{ amount: '5000', denom: 'arai' }],
           gas: '200000',
         },
         evm: {
