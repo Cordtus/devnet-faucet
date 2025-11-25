@@ -167,29 +167,35 @@ async function getCosmosBalance(address) {
   }
 }
 
-// Get recipient balance with fallback to alternate address type
+// Get recipient balance checking both address formats (same underlying account)
 async function getRecipientBalance(address, type) {
   const alternateAddress = getAlternateAddress(address, type);
 
-  // Try primary method first
-  let balance = null;
-  if (type === 'evm') {
-    balance = await getEvmBalance(address);
-    // Fallback to Cosmos query using converted address
-    if (balance === null && alternateAddress) {
-      console.log(`EVM balance check failed, trying Cosmos fallback for ${alternateAddress}`);
-      balance = await getCosmosBalance(alternateAddress);
-    }
-  } else {
-    balance = await getCosmosBalance(address);
-    // Fallback to EVM query using converted address
-    if (balance === null && alternateAddress) {
-      console.log(`Cosmos balance check failed, trying EVM fallback for ${alternateAddress}`);
-      balance = await getEvmBalance(alternateAddress);
-    }
-  }
+  // Query both EVM and Cosmos endpoints since they share the same account
+  // Take the maximum to handle indexing lag or query failures
+  let evmBalance = BigInt(0);
+  let cosmosBalance = BigInt(0);
 
-  return balance ?? BigInt(0);
+  const evmAddr = type === 'evm' ? address : alternateAddress;
+  const cosmosAddr = type === 'cosmos' ? address : alternateAddress;
+
+  // Query both in parallel
+  const [evmResult, cosmosResult] = await Promise.all([
+    evmAddr ? getEvmBalance(evmAddr) : Promise.resolve(null),
+    cosmosAddr ? getCosmosBalance(cosmosAddr) : Promise.resolve(null),
+  ]);
+
+  evmBalance = evmResult ?? BigInt(0);
+  cosmosBalance = cosmosResult ?? BigInt(0);
+
+  // Use the higher balance (both should be same, but handles indexing lag)
+  const balance = evmBalance > cosmosBalance ? evmBalance : cosmosBalance;
+
+  console.log(
+    `Balance check - EVM (${evmAddr}): ${evmBalance}, Cosmos (${cosmosAddr}): ${cosmosBalance}, Using: ${balance}`
+  );
+
+  return balance;
 }
 
 // Get account info from REST API
@@ -464,7 +470,7 @@ app.get('/send/:address', async (req, res) => {
   };
 
   try {
-    // Check recipient balance against threshold
+    // Check recipient balance and calculate top-up amount
     const recipientBalance = await getRecipientBalance(address, addressType);
     const threshold = BigInt(chainConf.balanceThreshold);
     const tokenSymbol = chainConf.tx.amounts[0]?.symbol || 'tokens';
@@ -485,14 +491,23 @@ app.get('/send/:address', async (req, res) => {
       return;
     }
 
-    console.log('Processing faucet request for', address, 'type:', addressType);
+    // Calculate the amount to send (top up to threshold)
+    const topUpAmount = threshold - recipientBalance;
+    const topUpFormatted = (Number(topUpAmount) / 10 ** decimals).toFixed(4);
+    const balanceFormatted = (Number(recipientBalance) / 10 ** decimals).toFixed(4);
+
+    console.log(
+      `Processing faucet request for ${address} (type: ${addressType})`,
+      `- Current balance: ${balanceFormatted} ${tokenSymbol}`,
+      `- Top-up amount: ${topUpFormatted} ${tokenSymbol}`
+    );
 
     let txResult;
 
     if (addressType === 'evm') {
-      txResult = await sendEvmNativeTokens(address);
+      txResult = await sendEvmNativeTokens(address, topUpAmount);
     } else {
-      txResult = await sendCosmosNativeTokens(address);
+      txResult = await sendCosmosNativeTokens(address, topUpAmount);
     }
 
     res.send({
@@ -518,28 +533,29 @@ app.get('/send/:address', async (req, res) => {
 });
 
 // Send native tokens via EVM (like ETH on Ethereum)
-async function sendEvmNativeTokens(recipientAddress) {
+async function sendEvmNativeTokens(recipientAddress, amount) {
   console.log('Sending native tokens via EVM to:', recipientAddress);
 
   const ethProvider = new JsonRpcProvider(chainConf.endpoints.evm_endpoint);
   const privateKey = getPrivateKey();
   const wallet = new Wallet(privateKey, ethProvider);
 
-  const amount = BigInt(chainConf.tx.amounts[0]?.amount || '1000000000000000000');
+  // Use the calculated top-up amount
+  const sendAmount = BigInt(amount);
 
   const faucetBalance = await ethProvider.getBalance(wallet.address);
   console.log(`Faucet balance: ${faucetBalance.toString()} wei`);
-  console.log(`Sending amount: ${amount.toString()} wei`);
+  console.log(`Sending amount: ${sendAmount.toString()} wei`);
 
-  if (faucetBalance < amount) {
+  if (faucetBalance < sendAmount) {
     throw new Error(
-      `Insufficient faucet balance. Has ${faucetBalance.toString()} wei, needs ${amount.toString()} wei`
+      `Insufficient faucet balance. Has ${faucetBalance.toString()} wei, needs ${sendAmount.toString()} wei`
     );
   }
 
   const tx = await wallet.sendTransaction({
     to: recipientAddress,
-    value: amount,
+    value: sendAmount,
   });
 
   console.log('Transaction sent:', tx.hash);
@@ -553,24 +569,25 @@ async function sendEvmNativeTokens(recipientAddress) {
     gas_used: receipt.gasUsed?.toString() || '0',
     from_address: receipt.from,
     to_address: receipt.to,
-    amount: amount.toString(),
+    amount: sendAmount.toString(),
     explorer_url: `${chainConf.endpoints.evm_explorer}/tx/${receipt.hash}`,
   };
 }
 
 // Send native tokens via Cosmos
-async function sendCosmosNativeTokens(recipientAddress) {
+async function sendCosmosNativeTokens(recipientAddress, topUpAmount) {
   console.log('Sending native tokens via Cosmos to:', recipientAddress);
 
   const fromAddress = getCosmosAddress();
   const accountInfo = await getAccountInfo(fromAddress);
 
-  const amounts = chainConf.tx.amounts
-    .map((token) => ({
-      denom: token.denom,
-      amount: token.amount,
-    }))
-    .sort((a, b) => a.denom.localeCompare(b.denom));
+  // Use the calculated top-up amount for the native token
+  const amounts = [
+    {
+      denom: chainConf.tx.amounts[0].denom,
+      amount: topUpAmount.toString(),
+    },
+  ];
 
   console.log('Amounts to send:', amounts);
 
@@ -632,6 +649,7 @@ async function sendCosmosNativeTokens(recipientAddress) {
     height: broadcastResult.tx_response.height || '0',
     gas_used: broadcastResult.tx_response.gas_used || '0',
     gas_wanted: broadcastResult.tx_response.gas_wanted || '0',
+    amount: topUpAmount.toString(),
     explorer_url: `${chainConf.endpoints.cosmos_explorer}/tx/${txHash}`,
   };
 }

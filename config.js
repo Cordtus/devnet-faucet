@@ -37,7 +37,7 @@ const config = {
           denom: 'arai',
           symbol: 'RAI',
           name: 'Republic AI',
-          amount: '1000000000000000000', // 1 RAI (18 decimals)
+          amount: '10000000000000000000', // Max 10 RAI (18 decimals) - actual sent = threshold - balance
           decimals: 18,
           display_denom: 'RAI',
         },
