@@ -20,6 +20,9 @@
 import { createAppKit } from '@reown/appkit';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { onMounted, provide, ref } from 'vue';
+import Header from './components/Header.vue';
+import Tabs from './components/Tabs.vue';
+import TransactionModal from './components/TransactionModal.vue';
 import { useConfig } from './composables/useConfig';
 import { useWalletStore } from './composables/useWalletStore';
 

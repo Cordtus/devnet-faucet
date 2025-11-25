@@ -74,10 +74,7 @@ import { computed } from 'vue';
 import { useConfig } from '../composables/useConfig';
 
 const { config } = useConfig();
-// biome-ignore lint/correctness/noUnusedVariables: used in template
 const projectName = computed(() => config.value?.project?.name || 'Republic AI Faucet');
-// Version will be updated with each deployment
-// biome-ignore lint/correctness/noUnusedVariables: used in template
 const version = '1.1.0';
 </script>
 

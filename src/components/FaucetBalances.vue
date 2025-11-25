@@ -181,7 +181,7 @@ const addressType = computed(() => {
 });
 
 // Show available tokens from config
-const _allTokens = computed(() => {
+const allTokens = computed(() => {
   if (!config.value || !config.value.tokens) return [];
   return [...config.value.tokens];
 });
@@ -219,7 +219,7 @@ const isTokenCompatible = (_token) => {
   return true;
 };
 
-const _getTokenStatusClass = (token) => {
+const getTokenStatusClass = (token) => {
   const status = getTokenStatus(token);
   const claimPercentage = getClaimPercentage(token);
 
@@ -250,7 +250,7 @@ const _getTokenStatusClass = (token) => {
   return { 'status-minimal': true };
 };
 
-const _isNativeToken = (token) => {
+const isNativeToken = (token) => {
   return token.type === 'native' || !token.contract;
 };
 
@@ -258,7 +258,7 @@ const getTokenSymbol = (token) => {
   return token.symbol || token.denom;
 };
 
-const _getTokenName = (token) => {
+const getTokenName = (token) => {
   return token.name || '';
 };
 
@@ -266,18 +266,18 @@ const getTokenType = (token) => {
   return token.type || 'Native';
 };
 
-const _getTokenTypeBadgeClass = (token) => {
+const getTokenTypeBadgeClass = (token) => {
   const type = getTokenType(token);
   if (type === 'native' || type === 'Native') return 'badge-native';
   return 'badge-default';
 };
 
-const _formatContractAddress = (address) => {
+const formatContractAddress = (address) => {
   if (!address) return '';
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 };
 
-const _formatIbcDenom = (denom) => {
+const formatIbcDenom = (denom) => {
   if (!denom) return '';
   const parts = denom.split('/');
   if (parts.length === 2 && parts[1].length > 8) {
@@ -286,7 +286,7 @@ const _formatIbcDenom = (denom) => {
   return denom;
 };
 
-const _formatTokenAmount = (token) => {
+const formatTokenAmount = (token) => {
   const amount = token.target_balance || token.amount || 0;
   const formatted = formatBalance(amount, token.decimals || 0);
   const symbol = getTokenSymbol(token);
@@ -323,7 +323,7 @@ const getClaimableAmountRaw = (token) => {
   return Math.max(0, remaining);
 };
 
-const _formatClaimableAmount = (token) => {
+const formatClaimableAmount = (token) => {
   const claimable = getClaimableAmountRaw(token);
   const target = Number.parseFloat(token.target_balance || token.amount || 0);
   const formattedClaimable = formatBalance(claimable, token.decimals || 0);
@@ -339,13 +339,13 @@ const _formatClaimableAmount = (token) => {
   return `${formattedClaimable}/${formattedTarget} ${symbol}`;
 };
 
-const _getHoverClass = (_token) => {
+const getHoverClass = (_token) => {
   if (!props.hoveringWallet) return '';
   // All native tokens are eligible for both address types
   return 'token-hover-eligible';
 };
 
-const _getIncompatibleReason = (_token) => {
+const getIncompatibleReason = (_token) => {
   return 'Token not available';
 };
 
@@ -368,11 +368,11 @@ const formatBalance = (amount, decimals = 0) => {
   }
 };
 
-const _toggleTokenExpansion = (denom) => {
+const toggleTokenExpansion = (denom) => {
   expandedTokens.value[denom] = !expandedTokens.value[denom];
 };
 
-const _copyToClipboard = async (text) => {
+const copyToClipboard = async (text) => {
   try {
     await navigator.clipboard.writeText(text);
     copiedAddress.value = text;
