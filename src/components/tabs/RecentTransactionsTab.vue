@@ -108,9 +108,9 @@
 
 <script setup>
 import { ref } from 'vue';
-import TransactionDetailsModal from '../TransactionDetailsModal.vue';
 import { useConfig } from '../../composables/useConfig';
 import { useTransactions } from '../../composables/useTransactions';
+import TransactionDetailsModal from '../TransactionDetailsModal.vue';
 
 const { networkConfig } = useConfig();
 const { recentTransactions, removeTransaction, clearAllTransactions } = useTransactions();

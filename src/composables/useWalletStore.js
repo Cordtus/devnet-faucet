@@ -38,48 +38,50 @@ export function useWalletStore() {
     state.cosmosWallet.connecting = true;
 
     try {
+      // Get prefix from network config
+      const prefix = networkConfig?.cosmos?.prefix || 'republic';
+      const chainId = networkConfig?.cosmos?.chainId || 'republic_77701-1';
+      const chainName = networkConfig?.name || 'Republic Devnet';
+
       const chainConfig = {
-        chainId: networkConfig.cosmos?.chainId || '4321',
-        chainName: 'cosmos',
-        rpc: networkConfig.cosmos?.rpc || 'https://devnet-1-rpc.ib.skip.build',
-        rest: networkConfig.cosmos?.rest || 'https://devnet-1-lcd.ib.skip.build',
+        chainId: chainId,
+        chainName: chainName,
+        rpc: networkConfig?.cosmos?.rpc || 'https://rpc.republicai.io:26657',
+        rest: networkConfig?.cosmos?.rest || 'https://rpc.republicai.io:1317',
         bip44: {
           coinType: 60,
         },
         bech32Config: {
-          bech32PrefixAccAddr: 'cosmos',
-          bech32PrefixAccPub: 'cosmospub',
-          bech32PrefixValAddr: 'cosmosvaloper',
-          bech32PrefixValPub: 'cosmosvaloperpub',
-          bech32PrefixConsAddr: 'cosmosvalcons',
-          bech32PrefixConsPub: 'cosmosvalconspub',
+          bech32PrefixAccAddr: prefix,
+          bech32PrefixAccPub: `${prefix}pub`,
+          bech32PrefixValAddr: `${prefix}valoper`,
+          bech32PrefixValPub: `${prefix}valoperpub`,
+          bech32PrefixConsAddr: `${prefix}valcons`,
+          bech32PrefixConsPub: `${prefix}valconspub`,
         },
         currencies: [
           {
-            coinDenom: 'ATOM',
-            coinMinimalDenom: 'uatom',
-            coinDecimals: 6,
-            coinGeckoId: 'cosmos',
+            coinDenom: 'RAI',
+            coinMinimalDenom: 'arai',
+            coinDecimals: 18,
           },
         ],
         feeCurrencies: [
           {
-            coinDenom: 'ATOM',
-            coinMinimalDenom: 'uatom',
-            coinDecimals: 6,
-            coinGeckoId: 'cosmos',
+            coinDenom: 'RAI',
+            coinMinimalDenom: 'arai',
+            coinDecimals: 18,
             gasPriceStep: {
-              low: 0.01,
-              average: 0.025,
-              high: 0.03,
+              low: 10000000000,
+              average: 25000000000,
+              high: 40000000000,
             },
           },
         ],
         stakeCurrency: {
-          coinDenom: 'ATOM',
-          coinMinimalDenom: 'uatom',
-          coinDecimals: 6,
-          coinGeckoId: 'cosmos',
+          coinDenom: 'RAI',
+          coinMinimalDenom: 'arai',
+          coinDecimals: 18,
         },
         features: ['eth-address-gen', 'eth-key-sign'],
       };

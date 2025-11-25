@@ -38,16 +38,21 @@ const addTransactionToHistory = (tx) => {
   saveRecentTransactions();
 };
 
-// Remove a specific transaction
+// Remove a specific transaction by index
 const removeTransaction = (index) => {
-  recentTransactions.value.splice(index, 1);
-  saveRecentTransactions();
+  if (index >= 0 && index < recentTransactions.value.length) {
+    recentTransactions.value = [
+      ...recentTransactions.value.slice(0, index),
+      ...recentTransactions.value.slice(index + 1),
+    ];
+    saveRecentTransactions();
+  }
 };
 
 // Clear all transactions
 const clearAllTransactions = () => {
   recentTransactions.value = [];
-  saveRecentTransactions();
+  localStorage.removeItem(STORAGE_KEY);
 };
 
 // Initialize by loading saved transactions

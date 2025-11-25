@@ -16,7 +16,6 @@ import { JsonRpcProvider, Wallet } from 'ethers';
 import express from 'express';
 import Long from 'long';
 import fetch from 'node-fetch';
-import { FrequencyChecker } from './checker.js';
 import conf, {
   getCosmosAddress,
   getEvmAddress,
@@ -29,7 +28,6 @@ import logRotation from './src/logRotation.js';
 
 const app = express();
 const chainConf = conf.blockchain;
-const checker = new FrequencyChecker(conf);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -98,7 +96,7 @@ function detectAddressType(address) {
 }
 
 // Convert hex address to Cosmos bech32
-function _hexToCosmosAddress(hexAddress) {
+function hexToCosmosAddress(hexAddress) {
   try {
     const addressBytes = Buffer.from(hexAddress.slice(2), 'hex');
     const words = bech32.toWords(addressBytes);
@@ -110,7 +108,7 @@ function _hexToCosmosAddress(hexAddress) {
 }
 
 // Convert Cosmos bech32 to hex
-function _cosmosAddressToHex(cosmosAddress) {
+function cosmosAddressToHex(cosmosAddress) {
   try {
     const { words } = bech32.decode(cosmosAddress);
     const addressBytes = Buffer.from(bech32.fromWords(words));
@@ -119,6 +117,85 @@ function _cosmosAddressToHex(cosmosAddress) {
     console.error('Error converting cosmos to hex address:', error);
     return null;
   }
+}
+
+// Get the alternate address format (EVM <-> Cosmos)
+function getAlternateAddress(address, type) {
+  if (type === 'evm') {
+    return hexToCosmosAddress(address);
+  }
+  return cosmosAddressToHex(address);
+}
+
+// Get balance via EVM RPC
+async function getEvmBalance(address) {
+  try {
+    const ethProvider = new JsonRpcProvider(chainConf.endpoints.evm_endpoint);
+    const balance = await ethProvider.getBalance(address);
+    return BigInt(balance.toString());
+  } catch (error) {
+    console.error('Error getting EVM balance:', error);
+    return null;
+  }
+}
+
+// Get balance via Cosmos REST
+async function getCosmosBalance(address) {
+  try {
+    const restEndpoint = chainConf.endpoints.rest_endpoint;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(`${restEndpoint}/cosmos/bank/v1beta1/balances/${address}`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    if (data.balances && Array.isArray(data.balances)) {
+      const tokenBalance = data.balances.find((b) => b.denom === chainConf.tx.amounts[0]?.denom);
+      return BigInt(tokenBalance?.amount || '0');
+    }
+    return BigInt(0);
+  } catch (error) {
+    console.error('Error getting Cosmos balance:', error);
+    return null;
+  }
+}
+
+// Get recipient balance checking both address formats (same underlying account)
+async function getRecipientBalance(address, type) {
+  const alternateAddress = getAlternateAddress(address, type);
+
+  // Query both EVM and Cosmos endpoints since they share the same account
+  // Take the maximum to handle indexing lag or query failures
+  let evmBalance = BigInt(0);
+  let cosmosBalance = BigInt(0);
+
+  const evmAddr = type === 'evm' ? address : alternateAddress;
+  const cosmosAddr = type === 'cosmos' ? address : alternateAddress;
+
+  // Query both in parallel
+  const [evmResult, cosmosResult] = await Promise.all([
+    evmAddr ? getEvmBalance(evmAddr) : Promise.resolve(null),
+    cosmosAddr ? getCosmosBalance(cosmosAddr) : Promise.resolve(null),
+  ]);
+
+  evmBalance = evmResult ?? BigInt(0);
+  cosmosBalance = cosmosResult ?? BigInt(0);
+
+  // Use the higher balance (both should be same, but handles indexing lag)
+  const balance = evmBalance > cosmosBalance ? evmBalance : cosmosBalance;
+
+  console.log(
+    `Balance check - EVM (${evmAddr}): ${evmBalance}, Cosmos (${cosmosAddr}): ${cosmosBalance}, Using: ${balance}`
+  );
+
+  return balance;
 }
 
 // Get account info from REST API
@@ -261,7 +338,7 @@ app.get('/config.json', (_req, res) => {
       endpoints: chainConf.endpoints,
       ids: chainConf.ids,
       sender: { option: { prefix: chainConf.sender.option.prefix } },
-      limit: chainConf.limit,
+      balanceThreshold: chainConf.balanceThreshold,
     },
     tokens: chainConf.tx.amounts.map((token) => ({
       denom: token.denom,
@@ -368,13 +445,8 @@ app.get('/balance/:type', async (req, res) => {
 // Main faucet endpoint
 app.get('/send/:address', async (req, res) => {
   const { address } = req.params;
-  const ip =
-    req.headers['cf-connecting-ip'] ||
-    req.headers['x-real-ip'] ||
-    req.headers['X-Forwarded-For'] ||
-    req.ip;
 
-  console.log(`[FAUCET] Token request - Address: ${address}, IP: ${ip}`);
+  console.log(`[FAUCET] Token request - Address: ${address}`);
 
   if (!address) {
     res.send({ result: 'Address is required!' });
@@ -390,36 +462,52 @@ app.get('/send/:address', async (req, res) => {
     return;
   }
 
-  try {
-    const addressOk = await checker.checkAddress(address, 'dual');
-    const ipOk = await checker.checkIp(`dual${ip}`, 'dual');
+  // Get the alternate address format (same underlying account)
+  const alternateAddress = getAlternateAddress(address, addressType);
+  const addresses = {
+    evm: addressType === 'evm' ? address : alternateAddress,
+    cosmos: addressType === 'cosmos' ? address : alternateAddress,
+  };
 
-    if (!addressOk || !ipOk) {
-      const addressLimitMsg = !addressOk
-        ? `Address ${address} has reached the daily limit (${chainConf.limit.address} request per 24h).`
-        : '';
-      const ipLimitMsg = !ipOk
-        ? `IP ${ip} has reached the daily limit (${chainConf.limit.ip} requests per 24h).`
-        : '';
+  try {
+    // Check recipient balance and calculate top-up amount
+    const recipientBalance = await getRecipientBalance(address, addressType);
+    const threshold = BigInt(chainConf.balanceThreshold);
+    const tokenSymbol = chainConf.tx.amounts[0]?.symbol || 'tokens';
+    const decimals = chainConf.tx.amounts[0]?.decimals || 18;
+
+    if (recipientBalance >= threshold) {
+      const balanceFormatted = (Number(recipientBalance) / 10 ** decimals).toFixed(4);
+      const thresholdFormatted = (Number(threshold) / 10 ** decimals).toFixed(0);
 
       res.send({
         result: {
           code: -2,
-          message: 'Rate limit exceeded',
-          details: [addressLimitMsg, ipLimitMsg].filter((msg) => msg).join(' '),
+          message: 'Balance threshold exceeded',
+          details: `Address ${address} already has ${balanceFormatted} ${tokenSymbol}. Faucet only tops up wallets below ${thresholdFormatted} ${tokenSymbol}.`,
+          addresses,
         },
       });
       return;
     }
 
-    console.log('Processing faucet request for', address, 'type:', addressType);
+    // Calculate the amount to send (top up to threshold)
+    const topUpAmount = threshold - recipientBalance;
+    const topUpFormatted = (Number(topUpAmount) / 10 ** decimals).toFixed(4);
+    const balanceFormatted = (Number(recipientBalance) / 10 ** decimals).toFixed(4);
+
+    console.log(
+      `Processing faucet request for ${address} (type: ${addressType})`,
+      `- Current balance: ${balanceFormatted} ${tokenSymbol}`,
+      `- Top-up amount: ${topUpFormatted} ${tokenSymbol}`
+    );
 
     let txResult;
 
     if (addressType === 'evm') {
-      txResult = await sendEvmNativeTokens(address);
+      txResult = await sendEvmNativeTokens(address, topUpAmount);
     } else {
-      txResult = await sendCosmosNativeTokens(address);
+      txResult = await sendCosmosNativeTokens(address, topUpAmount);
     }
 
     res.send({
@@ -427,6 +515,7 @@ app.get('/send/:address', async (req, res) => {
         code: 0,
         status: 'success',
         message: 'Tokens sent successfully!',
+        addresses,
         ...txResult,
       },
     });
@@ -437,34 +526,36 @@ app.get('/send/:address', async (req, res) => {
         code: -1,
         message: error.message || 'Transaction failed',
         error: error.toString(),
+        addresses,
       },
     });
   }
 });
 
 // Send native tokens via EVM (like ETH on Ethereum)
-async function sendEvmNativeTokens(recipientAddress) {
+async function sendEvmNativeTokens(recipientAddress, amount) {
   console.log('Sending native tokens via EVM to:', recipientAddress);
 
   const ethProvider = new JsonRpcProvider(chainConf.endpoints.evm_endpoint);
   const privateKey = getPrivateKey();
   const wallet = new Wallet(privateKey, ethProvider);
 
-  const amount = BigInt(chainConf.tx.amounts[0]?.amount || '1000000000000000000');
+  // Use the calculated top-up amount
+  const sendAmount = BigInt(amount);
 
   const faucetBalance = await ethProvider.getBalance(wallet.address);
   console.log(`Faucet balance: ${faucetBalance.toString()} wei`);
-  console.log(`Sending amount: ${amount.toString()} wei`);
+  console.log(`Sending amount: ${sendAmount.toString()} wei`);
 
-  if (faucetBalance < amount) {
+  if (faucetBalance < sendAmount) {
     throw new Error(
-      `Insufficient faucet balance. Has ${faucetBalance.toString()} wei, needs ${amount.toString()} wei`
+      `Insufficient faucet balance. Has ${faucetBalance.toString()} wei, needs ${sendAmount.toString()} wei`
     );
   }
 
   const tx = await wallet.sendTransaction({
     to: recipientAddress,
-    value: amount,
+    value: sendAmount,
   });
 
   console.log('Transaction sent:', tx.hash);
@@ -478,24 +569,25 @@ async function sendEvmNativeTokens(recipientAddress) {
     gas_used: receipt.gasUsed?.toString() || '0',
     from_address: receipt.from,
     to_address: receipt.to,
-    amount: amount.toString(),
+    amount: sendAmount.toString(),
     explorer_url: `${chainConf.endpoints.evm_explorer}/tx/${receipt.hash}`,
   };
 }
 
 // Send native tokens via Cosmos
-async function sendCosmosNativeTokens(recipientAddress) {
+async function sendCosmosNativeTokens(recipientAddress, topUpAmount) {
   console.log('Sending native tokens via Cosmos to:', recipientAddress);
 
   const fromAddress = getCosmosAddress();
   const accountInfo = await getAccountInfo(fromAddress);
 
-  const amounts = chainConf.tx.amounts
-    .map((token) => ({
-      denom: token.denom,
-      amount: token.amount,
-    }))
-    .sort((a, b) => a.denom.localeCompare(b.denom));
+  // Use the calculated top-up amount for the native token
+  const amounts = [
+    {
+      denom: chainConf.tx.amounts[0].denom,
+      amount: topUpAmount.toString(),
+    },
+  ];
 
   console.log('Amounts to send:', amounts);
 
@@ -557,6 +649,7 @@ async function sendCosmosNativeTokens(recipientAddress) {
     height: broadcastResult.tx_response.height || '0',
     gas_used: broadcastResult.tx_response.gas_used || '0',
     gas_wanted: broadcastResult.tx_response.gas_wanted || '0',
+    amount: topUpAmount.toString(),
     explorer_url: `${chainConf.endpoints.cosmos_explorer}/tx/${txHash}`,
   };
 }
