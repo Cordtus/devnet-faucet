@@ -1,12 +1,12 @@
 # Devnet Faucet
 
-A dual-chain faucet for distributing native tokens on Cosmos SDK chains with EVM support. Built for frequently-resetting devnets with comprehensive rate limiting.
+A dual-chain faucet for distributing native tokens on Cosmos SDK chains with EVM support. Built for frequently-resetting devnets with balance-based limiting.
 
 ## Features
 
 - **Dual Environment Support**: Simultaneous Cosmos SDK + EVM native token distribution
 - **Single Native Token**: Distributes the chain's native token to both Bech32 and EVM addresses
-- **Intelligent Rate Limiting**: Per-address (1/24h) and per-IP (10/24h) with SQLite persistence
+- **Balance-Based Limiting**: Only tops up wallets below a configurable threshold (default: 10 tokens)
 - **Secure Key Management**: Mnemonic-based dual address derivation (eth_secp256k1)
 - **Modern UI**: Vue 3 frontend with Keplr and MetaMask/WalletConnect integration
 - **Transaction History**: Persistent tracking with explorer links
@@ -90,13 +90,12 @@ npm run dev       # Start Vite dev server on port 3000
 **Core Components:**
 - `faucet.js` - Express server with API endpoints
 - `config.js` - Network configuration and native token settings
-- `checker.js` - Rate limiting system (address + IP)
 - `src/SecureKeyManager.js` - Key derivation and address management
 
-**Rate Limiting:**
-- Per-address: 1 request per 24 hours
-- Per-IP: 10 requests per 24 hours
-- Persistent storage in `.faucet/history.db`
+**Balance-Based Limiting:**
+- Faucet checks recipient's current balance before sending
+- Only tops up wallets below the configured threshold (default: 10 tokens)
+- Prevents abuse while allowing legitimate users to get tokens when needed
 
 ### Frontend (Vue 3 + Vite)
 
@@ -166,7 +165,6 @@ npm run docker         # Run Docker container
 devnet-faucet/
 |-- faucet.js                    # Main Express server
 |-- config.js                    # Network configuration
-|-- checker.js                   # Rate limiting system
 |-- biome.json                   # Biome configuration
 |-- vitest.config.js             # Vitest configuration
 |-- vite.config.js               # Vite build configuration
@@ -200,7 +198,6 @@ devnet-faucet/
 |
 |-- tests/                       # Test suite
     |-- SecureKeyManager.test.js
-    |-- checker.test.js
     |-- config.test.js
     |-- faucet.test.js
 ```

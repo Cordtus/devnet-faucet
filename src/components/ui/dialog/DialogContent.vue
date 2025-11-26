@@ -1,14 +1,9 @@
 <script setup>
-import { reactiveOmit } from "@vueuse/core";
-import { X } from "lucide-vue-next";
-import {
-  DialogClose,
-  DialogContent,
-  DialogPortal,
-  useForwardPropsEmits,
-} from "reka-ui";
-import { cn } from "@/lib/utils";
-import DialogOverlay from "./DialogOverlay.vue";
+import { reactiveOmit } from '@vueuse/core';
+import { X } from 'lucide-vue-next';
+import { DialogClose, DialogContent, DialogPortal, useForwardPropsEmits } from 'reka-ui';
+import { cn } from '@/lib/utils';
+import DialogOverlay from './DialogOverlay.vue';
 
 defineOptions({
   inheritAttrs: false,
@@ -23,15 +18,15 @@ const props = defineProps({
   showCloseButton: { type: Boolean, required: false, default: true },
 });
 const emits = defineEmits([
-  "escapeKeyDown",
-  "pointerDownOutside",
-  "focusOutside",
-  "interactOutside",
-  "openAutoFocus",
-  "closeAutoFocus",
+  'escapeKeyDown',
+  'pointerDownOutside',
+  'focusOutside',
+  'interactOutside',
+  'openAutoFocus',
+  'closeAutoFocus',
 ]);
 
-const delegatedProps = reactiveOmit(props, "class");
+const delegatedProps = reactiveOmit(props, 'class');
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits);
 </script>

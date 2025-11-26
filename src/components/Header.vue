@@ -33,9 +33,9 @@
 <script setup>
 import { computed, inject } from 'vue';
 import { useConfig } from '../composables/useConfig';
-import { Button } from './ui/button'
 import { useWalletStore } from '../composables/useWalletStore';
 import CompanyLogo from '../svg/CompanyLogo.vue';
+import { Button } from './ui/button';
 
 const { cosmosWallet, evmWallet, connectKeplr, disconnectKeplr, disconnectEvm } = useWalletStore();
 

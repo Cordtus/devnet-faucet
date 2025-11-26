@@ -41,28 +41,23 @@
 
 <script setup>
 import BirdIcon from '../svg/BirdIcon.vue';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from './ui/accordion';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 
 const faqs = [
   {
-    question: "How do I earn points?",
+    question: 'How do I earn points?',
     answer:
-      "You can earn points by completing activities such as connecting your wallet, joining the community, and participating in events.",
+      'You can earn points by completing activities such as connecting your wallet, joining the community, and participating in events.',
   },
   {
-    question: "When are points updated?",
+    question: 'When are points updated?',
     answer:
-      "Points are updated automatically every Friday at 00:00 UTC during the distribution cycle.",
+      'Points are updated automatically every Friday at 00:00 UTC during the distribution cycle.',
   },
   {
-    question: "What are points used for?",
+    question: 'What are points used for?',
     answer:
-      "Points can be used to access exclusive features, rewards, or airdrops based on your leaderboard position.",
+      'Points can be used to access exclusive features, rewards, or airdrops based on your leaderboard position.',
   },
 ];
 </script>

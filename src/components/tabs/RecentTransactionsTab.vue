@@ -123,11 +123,11 @@
 
 <script setup>
 import { ref } from 'vue';
-import TransactionDetailsModal from '../TransactionDetailsModal.vue';
 import { useConfig } from '../../composables/useConfig';
 import { useTransactions } from '../../composables/useTransactions';
-import { Button } from '../ui/button';
+import TransactionDetailsModal from '../TransactionDetailsModal.vue';
 import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
 import { Kbd } from '../ui/kbd';
 
 const { networkConfig } = useConfig();

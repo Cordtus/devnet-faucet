@@ -11,7 +11,6 @@ describe('faucet application', () => {
 
     it('should have required dependency files', () => {
       expect(fs.existsSync(path.join(process.cwd(), 'config.js'))).toBe(true);
-      expect(fs.existsSync(path.join(process.cwd(), 'checker.js'))).toBe(true);
     });
 
     it('should have src directory with utilities', () => {
@@ -78,24 +77,6 @@ describe('faucet application', () => {
     it('should have scripts directory', () => {
       const scriptsPath = path.join(process.cwd(), 'scripts');
       expect(fs.existsSync(scriptsPath)).toBe(true);
-    });
-  });
-
-  describe('rate limiting persistence', () => {
-    it('should create .faucet directory for database if not exists', () => {
-      const faucetDir = path.join(process.cwd(), '.faucet');
-
-      // The directory should either exist or be creatable
-      if (!fs.existsSync(faucetDir)) {
-        fs.mkdirSync(faucetDir, { recursive: true });
-      }
-
-      expect(fs.existsSync(faucetDir)).toBe(true);
-
-      // Clean up if we created it
-      if (fs.readdirSync(faucetDir).length === 0) {
-        fs.rmdirSync(faucetDir);
-      }
     });
   });
 

@@ -1,7 +1,7 @@
 <script setup>
-import { reactiveOmit } from "@vueuse/core";
-import { DropdownMenuItem, useForwardProps } from "reka-ui";
-import { cn } from "@/lib/utils";
+import { reactiveOmit } from '@vueuse/core';
+import { DropdownMenuItem, useForwardProps } from 'reka-ui';
+import { cn } from '@/lib/utils';
 
 const props = defineProps({
   disabled: { type: Boolean, required: false },
@@ -10,10 +10,10 @@ const props = defineProps({
   as: { type: null, required: false },
   class: { type: null, required: false },
   inset: { type: Boolean, required: false },
-  variant: { type: String, required: false, default: "default" },
+  variant: { type: String, required: false, default: 'default' },
 });
 
-const delegatedProps = reactiveOmit(props, "inset", "variant", "class");
+const delegatedProps = reactiveOmit(props, 'inset', 'variant', 'class');
 
 const forwardedProps = useForwardProps(delegatedProps);
 </script>

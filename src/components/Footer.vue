@@ -235,9 +235,9 @@
 <script setup>
 import WireworkCenter from '../assets/lottie/wirework-center-footer.json';
 import WireworkCorner from '../assets/lottie/wirework-corner-footer.json';
+import CompanyLogo from '../svg/CompanyLogo.vue';
 import DocumentCircleIcon from '../svg/DocumentCircleIcon.vue';
 import GithubCircleIcon from '../svg/GithubCircleIcon.vue';
 import TelegramCircleIcon from '../svg/TelegramCircleIcon.vue';
 import XCircleIcon from '../svg/XCircleIcon.vue';
-import CompanyLogo from '../svg/CompanyLogo.vue';
 </script>

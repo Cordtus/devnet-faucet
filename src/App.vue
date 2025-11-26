@@ -31,13 +31,13 @@
 import { createAppKit } from '@reown/appkit';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { onMounted, provide, ref } from 'vue';
+import FAQs from './components/FAQs.vue';
+import Footer from './components/Footer.vue';
 import Header from './components/Header.vue';
 import Tabs from './components/Tabs.vue';
 import { useConfig } from './composables/useConfig';
 import { useWalletStore } from './composables/useWalletStore';
 import DividerLine from './svg/DividerLine.vue';
-import FAQs from './components/FAQs.vue';
-import Footer from './components/Footer.vue';
 
 // Load configuration
 const { config, loadConfig } = useConfig();

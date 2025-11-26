@@ -28,7 +28,6 @@ describe('config', () => {
   describe('configuration structure', () => {
     it('should have required top-level properties', () => {
       expect(config).toHaveProperty('port');
-      expect(config).toHaveProperty('db');
       expect(config).toHaveProperty('project');
       expect(config).toHaveProperty('blockchain');
     });
@@ -36,11 +35,6 @@ describe('config', () => {
     it('should have correct port configuration', () => {
       expect(typeof config.port).toBe('number');
       expect(config.port).toBeGreaterThan(0);
-    });
-
-    it('should have database configuration', () => {
-      expect(config.db).toHaveProperty('path');
-      expect(typeof config.db.path).toBe('string');
     });
 
     it('should have project metadata', () => {
@@ -120,18 +114,15 @@ describe('config', () => {
     });
   });
 
-  describe('rate limits', () => {
-    it('should have rate limit configuration', () => {
-      expect(config.blockchain.limit).toHaveProperty('address');
-      expect(config.blockchain.limit).toHaveProperty('ip');
-      expect(typeof config.blockchain.limit.address).toBe('number');
-      expect(typeof config.blockchain.limit.ip).toBe('number');
+  describe('balance threshold', () => {
+    it('should have balance threshold configuration', () => {
+      expect(config.blockchain).toHaveProperty('balanceThreshold');
+      expect(typeof config.blockchain.balanceThreshold).toBe('string');
     });
 
-    it('should have reasonable rate limits', () => {
-      expect(config.blockchain.limit.address).toBeGreaterThan(0);
-      expect(config.blockchain.limit.ip).toBeGreaterThan(0);
-      expect(config.blockchain.limit.ip).toBeGreaterThanOrEqual(config.blockchain.limit.address);
+    it('should have a valid balance threshold value', () => {
+      const threshold = BigInt(config.blockchain.balanceThreshold);
+      expect(threshold).toBeGreaterThan(0n);
     });
   });
 

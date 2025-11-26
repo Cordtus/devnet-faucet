@@ -162,20 +162,19 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useConfig } from '../composables/useConfig';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose,
-} from './ui/dialog'
-import {Button} from './ui/button'
-import {Badge} from './ui/badge'
-import {Kbd} from './ui/kbd'
-
+} from './ui/dialog';
+import { Kbd } from './ui/kbd';
 
 const props = defineProps({
   transaction: {

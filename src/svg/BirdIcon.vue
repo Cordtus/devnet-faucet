@@ -60,15 +60,15 @@
 defineProps({
   width: {
     type: [Number, String],
-    default: 13
+    default: 13,
   },
   height: {
     type: [Number, String],
-    default: 14
+    default: 14,
   },
   class: {
     type: String,
-    default: ''
-  }
+    default: '',
+  },
 });
 </script>

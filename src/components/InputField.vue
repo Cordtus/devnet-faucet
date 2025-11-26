@@ -48,14 +48,14 @@ import { Input } from './ui/input';
 defineProps({
   fullWidth: {
     type: Boolean,
-    default: false
+    default: false,
   },
   isConnected: {
     type: Boolean,
-    default: false
+    default: false,
   },
   className: {
-    default: ''
-  }
+    default: '',
+  },
 });
 </script>

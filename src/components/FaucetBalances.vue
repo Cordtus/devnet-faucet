@@ -163,7 +163,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch, toRaw } from 'vue';
+import { computed, onMounted, ref, toRaw, watch } from 'vue';
 import { useConfig } from '../composables/useConfig';
 
 const props = defineProps({
@@ -178,7 +178,7 @@ const loadingBalances = ref(false);
 const copiedAddress = ref('');
 const expandedTokens = ref({});
 
-console.log('Line----170 FaucetBalances.vue', expandedTokens)
+console.log('Line----170 FaucetBalances.vue', expandedTokens);
 const bech32Prefix = computed(() => {
   return (
     config.value?.network?.cosmos?.prefix ||
@@ -280,7 +280,8 @@ const getTokenType = (token) => {
 
 const getTokenTypeBadgeClass = (token) => {
   const type = getTokenType(token);
-  if (type === 'native' || type === 'Native') return 'bg-[rgba(80,100,251,0.1)] text-[var(--cosmos-secondary)]';
+  if (type === 'native' || type === 'Native')
+    return 'bg-[rgba(80,100,251,0.1)] text-[var(--cosmos-secondary)]';
   return 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]';
 };
 
@@ -381,16 +382,16 @@ const formatBalance = (amount, decimals = 0) => {
 };
 
 const toggleTokenExpansion = (denom) => {
-  console.log('Line----373 FaucetBalances.vue', denom)
+  console.log('Line----373 FaucetBalances.vue', denom);
   // Create a new object reference to ensure reactivity triggers
   const newVal = !expandedTokens.value[denom];
   console.log('Line----376 FaucetBalances.vue', {
     ...expandedTokens.value,
-    [denom]: newVal
-  })
+    [denom]: newVal,
+  });
   expandedTokens.value = {
     ...expandedTokens.value,
-    [denom]: newVal
+    [denom]: newVal,
   };
 };
 

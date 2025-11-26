@@ -99,14 +99,19 @@
 
 <script setup>
 import { computed, inject, ref } from 'vue';
-import FaucetBalances from '../FaucetBalances.vue';
 import { useConfig } from '../../composables/useConfig';
 import { useTransactions } from '../../composables/useTransactions';
 import { useWalletStore } from '../../composables/useWalletStore';
+import FaucetBalances from '../FaucetBalances.vue';
 import InputField from '../InputField.vue';
 import { Button } from '../ui/button';
 import { ButtonGroup } from '../ui/button-group';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 
 const { cosmosWallet, evmWallet } = useWalletStore();
 const { config } = useConfig();

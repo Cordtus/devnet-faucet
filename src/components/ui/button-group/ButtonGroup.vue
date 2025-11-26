@@ -1,6 +1,6 @@
 <script setup>
-import { cn } from "@/lib/utils";
-import { buttonGroupVariants } from ".";
+import { cn } from '@/lib/utils';
+import { buttonGroupVariants } from '.';
 
 const props = defineProps({
   class: { type: null, required: false },

@@ -3,9 +3,6 @@ import secureKeyManager from './src/SecureKeyManager.js';
 
 const config = {
   port: 8088,
-  db: {
-    path: '.faucet/history.db',
-  },
   project: {
     name: 'Republic Devnet Faucet',
     logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/cosmoshub/images/atom.svg',
@@ -40,7 +37,7 @@ const config = {
           denom: 'arai',
           symbol: 'RAI',
           name: 'Republic AI',
-          amount: '1000000000000000000', // 1 RAI (18 decimals)
+          amount: '10000000000000000000', // Max 10 RAI (18 decimals) - actual sent = threshold - balance
           decimals: 18,
           display_denom: 'RAI',
         },
@@ -56,10 +53,8 @@ const config = {
         },
       },
     },
-    limit: {
-      address: 1,
-      ip: 10,
-    },
+    // Balance threshold: only top up wallets below this amount (10 tokens with 18 decimals)
+    balanceThreshold: '10000000000000000000',
   },
 };
 
