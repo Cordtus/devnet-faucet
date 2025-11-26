@@ -72,7 +72,7 @@ onMounted(async () => {
     // Configure custom network based on config
     const customNetwork = {
       id: config.value.network.evm.chainId,
-      name: 'Cosmos EVM Devnet-1',
+      name: 'Republic AI Devnet',
       nativeCurrency: {
         name: 'ATOM',
         symbol: 'ATOM',
@@ -94,10 +94,10 @@ onMounted(async () => {
 
     // Create metadata
     const metadata = {
-      name: 'Cosmos EVM Faucet',
-      description: 'Token distribution faucet for Cosmos EVM Devnet',
-      url: 'https://faucet.basementnodes.ca',
-      icons: ['https://faucet.basementnodes.ca/favicon.svg'],
+      name: 'Republic AI Devnet Faucet',
+      description: 'Token distribution faucet for Republic AI Devnet',
+      url: 'https://faucet.republicai.io',
+      icons: ['https://faucet.republicai.io/favicon.svg'],
     };
 
     // Create Wagmi adapter

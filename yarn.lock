@@ -56,6 +56,11 @@
     "@biomejs/cli-win32-arm64" "2.3.7"
     "@biomejs/cli-win32-x64" "2.3.7"
 
+"@biomejs/cli-linux-x64-musl@2.3.7":
+  version "2.3.7"
+  resolved "https://registry.npmjs.org/@biomejs/cli-linux-x64-musl/-/cli-linux-x64-musl-2.3.7.tgz"
+  integrity sha512-CQUtgH1tIN6e5wiYSJqzSwJumHYolNtaj1dwZGCnZXm2PZU1jOJof9TsyiP3bXNDb+VOR7oo7ZvY01If0W3iFQ==
+
 "@biomejs/cli-linux-x64@2.3.7":
   version "2.3.7"
   resolved "https://registry.npmjs.org/@biomejs/cli-linux-x64/-/cli-linux-x64-2.3.7.tgz"
@@ -865,6 +870,11 @@
   resolved "https://registry.npmjs.org/@rollup/rollup-linux-x64-gnu/-/rollup-linux-x64-gnu-4.44.1.tgz"
   integrity sha512-EtnsrmZGomz9WxK1bR5079zee3+7a+AdFlghyd6VbAjgRJDbTANJ9dcPIPAi76uG05micpEL+gPGmAKYTschQw==
 
+"@rollup/rollup-linux-x64-musl@4.44.1":
+  version "4.44.1"
+  resolved "https://registry.npmjs.org/@rollup/rollup-linux-x64-musl/-/rollup-linux-x64-musl-4.44.1.tgz"
+  integrity sha512-iAS4p+J1az6Usn0f8xhgL4PaU878KEtutP4hqw52I4IO6AGoyOkHCxcc4bqufv1tQLdDWFx8lR9YlwxKuv3/3g==
+
 "@safe-global/safe-apps-provider@~0.18.6", "@safe-global/safe-apps-provider@0.18.6":
   version "0.18.6"
   resolved "https://registry.npmjs.org/@safe-global/safe-apps-provider/-/safe-apps-provider-0.18.6.tgz"
@@ -978,6 +988,11 @@
   version "1.15.3"
   resolved "https://registry.npmjs.org/@swc/core-linux-x64-gnu/-/core-linux-x64-gnu-1.15.3.tgz"
   integrity sha512-aKttAZnz8YB1VJwPQZtyU8Uk0BfMP63iDMkvjhJzRZVgySmqt/apWSdnoIcZlUoGheBrcqbMC17GGUmur7OT5A==
+
+"@swc/core-linux-x64-musl@1.15.3":
+  version "1.15.3"
+  resolved "https://registry.npmjs.org/@swc/core-linux-x64-musl/-/core-linux-x64-musl-1.15.3.tgz"
+  integrity sha512-oe8FctPu1gnUsdtGJRO2rvOUIkkIIaHqsO9xxN0bTR7dFTlPTGi2Fhk1tnvXeyAvCPxLIcwD8phzKg6wLv9yug==
 
 "@swc/core@^1.12.14":
   version "1.15.3"

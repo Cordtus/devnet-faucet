@@ -5,7 +5,7 @@ const config = {
   port: 8088,
   project: {
     name: 'Republic Devnet Faucet',
-    logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/cosmoshub/images/atom.svg',
+    logo: '',
     deployer: '<a href="https://republicai.io">Republic AI</a>',
   },
   blockchain: {

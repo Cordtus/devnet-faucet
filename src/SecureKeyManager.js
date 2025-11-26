@@ -12,7 +12,7 @@ class SecureKeyManager {
     this._keys = new Map();
     this._addressCache = null;
     this._initialized = false;
-    this._prefix = 'cosmos'; // default prefix
+    this._prefix = 'republic';
   }
 
   async initialize(options = {}) {

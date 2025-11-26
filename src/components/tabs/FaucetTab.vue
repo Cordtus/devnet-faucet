@@ -205,7 +205,7 @@ const bech32Prefix = computed(() => {
   return (
     config.value?.network?.cosmos?.prefix ||
     config.value?.blockchain?.sender?.option?.prefix ||
-    'cosmos'
+    'republic'
   );
 });
 
