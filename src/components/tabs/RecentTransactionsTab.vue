@@ -251,14 +251,11 @@ const getTransactionExplorerUrl = (tx) => {
   if (actualHash) {
     if (result.network_type === 'evm' || tx.addressType === 'evm') {
       // EVM transaction - use blockscout explorer
-      const explorerBase =
-        networkConfig.value.evm?.explorer || 'https://evm-devnet-1.cloud.blockscout.com';
+      const explorerBase = networkConfig.value.evm?.explorer || 'https://faucet.republicai.io';
       return `${explorerBase}/tx/${actualHash}`;
     } else if (result.network_type === 'cosmos' || tx.addressType === 'cosmos') {
       // Cosmos transaction - use explorer from config
-      const explorerBase =
-        networkConfig.value.cosmos?.explorer ||
-        'https://devnet-explorer.fly.dev/Cosmos%20Evm%20Devnet';
+      const explorerBase = networkConfig.value.cosmos?.explorer || 'https://faucet.republicai.io';
       return `${explorerBase}/tx/${actualHash}`;
     }
   }

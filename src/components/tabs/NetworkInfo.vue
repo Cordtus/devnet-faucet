@@ -60,27 +60,6 @@
               <i class="fas fa-copy copy-icon"></i>
             </code>
           </div>
-          
-          <!-- IBC Tokens (show only in Cosmos tab) -->
-          <div v-if="ibcTokens.length > 0" class="ibc-section mt-4">
-            <h6 class="section-subtitle">
-              <i class="fas fa-link"></i>
-              IBC Tokens
-              <button class="btn btn-sm btn-outline-primary ms-2" @click="refreshIBCBalances" :disabled="loadingIBC">
-                <i class="fas" :class="loadingIBC ? 'fa-spinner fa-spin' : 'fa-sync'"></i>
-              </button>
-            </h6>
-            <div class="ibc-token-item" v-for="token in ibcTokens" :key="token.denom">
-              <div class="ibc-token-header">
-                <span class="token-name">{{ token.symbol || token.name }}</span>
-                <span class="token-balance">{{ formatBalance(token.amount, token.decimals) }}</span>
-              </div>
-              <div class="ibc-denom" @click="copyToClipboard(token.denom)">
-                <code>{{ formatIBCDenom(token.denom) }}</code>
-                <i class="fas fa-copy copy-icon"></i>
-              </div>
-            </div>
-          </div>
         </div>
 
         <!-- EVM Section -->
@@ -115,30 +94,14 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { ref } from 'vue';
 import { useConfig } from '../../composables/useConfig';
 
-const { networkConfig, config } = useConfig();
-const ibcTokens = ref([]);
-const loadingIBC = ref(false);
+const { networkConfig } = useConfig();
 const copiedText = ref('');
 const activeNetworkTab = ref('cosmos');
 
-const formatAddress = (address) => {
-  if (!address) return '';
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-};
-
-const formatIBCDenom = (denom) => {
-  if (!denom) return '';
-  const parts = denom.split('/');
-  if (parts.length === 2 && parts[1].length > 8) {
-    return `${parts[0]}/...${parts[1].slice(-6)}`;
-  }
-  return denom;
-};
-
-const formatBalance = (amount, decimals = 0) => {
+const formatBalance = (amount, decimals = 18) => {
   if (!amount || amount === '0') return '0';
 
   try {
@@ -170,52 +133,6 @@ const copyToClipboard = async (text) => {
     console.error('Failed to copy:', err);
   }
 };
-
-const fetchIBCBalances = async () => {
-  if (!networkConfig.value.faucetAddresses?.cosmos || !config.value) return;
-
-  loadingIBC.value = true;
-  try {
-    const restEndpoint = config.value.blockchain.endpoints.rest_endpoint;
-    const cosmosAddress = networkConfig.value.faucetAddresses.cosmos;
-
-    const response = await fetch(`${restEndpoint}/cosmos/bank/v1beta1/balances/${cosmosAddress}`);
-    const data = await response.json();
-
-    if (data.balances && Array.isArray(data.balances)) {
-      // Filter for IBC tokens
-      const ibcBalances = data.balances.filter((b) => b.denom.startsWith('ibc/'));
-
-      // Try to match with known IBC tokens from config
-      const tokens = config.value.blockchain.tx.amounts || [];
-
-      ibcTokens.value = ibcBalances.map((balance) => {
-        // Find matching token config
-        const tokenConfig = tokens.find((t) => t.denom === balance.denom);
-
-        return {
-          denom: balance.denom,
-          amount: balance.amount,
-          symbol: tokenConfig?.symbol || 'Unknown',
-          name: tokenConfig?.name || 'IBC Token',
-          decimals: tokenConfig?.decimals || 6,
-        };
-      });
-    }
-  } catch (error) {
-    console.error('Error fetching IBC balances:', error);
-  } finally {
-    loadingIBC.value = false;
-  }
-};
-
-const refreshIBCBalances = () => {
-  fetchIBCBalances();
-};
-
-onMounted(() => {
-  fetchIBCBalances();
-});
 </script>
 
 <style scoped>
@@ -371,72 +288,7 @@ onMounted(() => {
 }
 
 
-.section-subtitle {
-  color: var(--cosmos-accent);
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 0.75rem;
-  display: flex;
-  align-items: center;
-}
-
-.ibc-section {
-  border-top: 1px solid var(--border-color);
-  padding-top: 1rem;
-}
-
 .network-section {
   padding: 0;
-}
-
-/* IBC Token Styles */
-.ibc-token-item {
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 0.75rem;
-}
-
-.ibc-token-item:last-child {
-  margin-bottom: 0;
-}
-
-.ibc-token-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.token-name {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.token-balance {
-  color: var(--cosmos-accent);
-  font-weight: 500;
-}
-
-.ibc-denom {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  transition: color 0.2s ease;
-}
-
-.ibc-denom:hover {
-  color: var(--cosmos-accent);
-}
-
-.ibc-denom code {
-  font-size: 0.8rem;
-  background: none;
-  padding: 0;
-}
-
-.ibc-denom .copy-icon {
-  font-size: 0.7rem;
 }
 </style>

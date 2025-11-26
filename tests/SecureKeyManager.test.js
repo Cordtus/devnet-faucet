@@ -71,7 +71,7 @@ describe('SecureKeyManager', () => {
       await keyManager.initialize();
       const cosmosAddress = keyManager.getCosmosAddress();
 
-      expect(cosmosAddress).toMatch(/^cosmos1[a-z0-9]{38}$/);
+      expect(cosmosAddress).toMatch(/^republic1[a-z0-9]{38}$/);
     });
 
     it('should have consistent addresses for same mnemonic', async () => {
@@ -159,7 +159,7 @@ describe('SecureKeyManager', () => {
       await keyManager.initialize();
       const address = keyManager.getCosmosAddress();
 
-      expect(address).toMatch(/^cosmos1[a-z0-9]{38}$/);
+      expect(address).toMatch(/^republic1[a-z0-9]{38}$/);
     });
   });
 
