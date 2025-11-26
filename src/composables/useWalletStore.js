@@ -38,16 +38,18 @@ export function useWalletStore() {
     state.cosmosWallet.connecting = true;
 
     try {
-      // Get prefix from network config
+      // Get chain info from network config (loaded from backend /config.json)
       const prefix = networkConfig?.cosmos?.prefix || 'republic';
       const chainId = networkConfig?.cosmos?.chainId || 'republic_77701-1';
-      const chainName = networkConfig?.name || 'Republic Devnet';
+      const rpc = networkConfig?.cosmos?.rpc || 'https://rpc.republicai.io:26657';
+      const rest = networkConfig?.cosmos?.rest || 'https://rpc.republicai.io:1317';
 
+      // Build Keplr chain config for Republic AI Devnet
       const chainConfig = {
         chainId: chainId,
-        chainName: chainName,
-        rpc: networkConfig?.cosmos?.rpc || 'https://rpc.republicai.io:26657',
-        rest: networkConfig?.cosmos?.rest || 'https://rpc.republicai.io:1317',
+        chainName: 'Republic AI Devnet',
+        rpc: rpc,
+        rest: rest,
         bip44: {
           coinType: 60,
         },
@@ -64,6 +66,7 @@ export function useWalletStore() {
             coinDenom: 'RAI',
             coinMinimalDenom: 'arai',
             coinDecimals: 18,
+            coinGeckoId: undefined,
           },
         ],
         feeCurrencies: [
@@ -71,6 +74,7 @@ export function useWalletStore() {
             coinDenom: 'RAI',
             coinMinimalDenom: 'arai',
             coinDecimals: 18,
+            coinGeckoId: undefined,
             gasPriceStep: {
               low: 10000000000,
               average: 25000000000,
@@ -82,6 +86,7 @@ export function useWalletStore() {
           coinDenom: 'RAI',
           coinMinimalDenom: 'arai',
           coinDecimals: 18,
+          coinGeckoId: undefined,
         },
         features: ['eth-address-gen', 'eth-key-sign'],
       };
