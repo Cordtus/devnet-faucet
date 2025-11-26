@@ -1,41 +1,33 @@
 <template>
-  <div class="modal-backdrop" @click="$emit('close')">
-    <div class="modal-content" @click.stop>
-      <div class="modal-header">
-        <h5 class="modal-title">Transaction Details</h5>
-        <button type="button" class="btn-close" @click="$emit('close')"></button>
-      </div>
-      
-      <div class="modal-body">
-        <!-- Basic Info -->
-        <div class="mb-3">
-          <table class="table table-sm">
-            <tbody>
-              <tr>
-                <td class="text-muted">Status:</td>
-                <td>
-                  <span class="badge" :class="getTransactionBadgeClass(transaction)">
-                    {{ getTransactionStatus(transaction) }}
-                  </span>
-                </td>
-              </tr>
-              <tr>
-                <td class="text-muted">Address:</td>
-                <td>
-                  <code class="small">{{ transaction.address }}</code>
-                  <span class="badge bg-secondary ms-2">{{ transaction.addressType }}</span>
-                </td>
-              </tr>
-              <tr v-if="getActualTransactionHash(transaction)">
-                <td class="text-muted">Tx Hash:</td>
-                <td><code class="small">{{ getActualTransactionHash(transaction) }}</code></td>
-              </tr>
-              <tr>
-                <td class="text-muted">Timestamp:</td>
-                <td>{{ new Date(transaction.timestamp).toLocaleString() }}</td>
-              </tr>
-            </tbody>
-          </table>
+  <Dialog>
+    <DialogTrigger as-child>
+      <Button variant="outline" class="flex-1 cursor-pointer md:flex-none border-blue-500 text-blue-500 hover:bg-blue-50 hover:text-blue-600 text-xs"  size="sm">
+        <i class="fas fa-eye mr-1 hidden md:inline"></i>Details
+      </Button>
+    </DialogTrigger>
+    <DialogContent class="!max-w-3xl">
+      <DialogHeader>
+        <DialogTitle>Transaction Details</DialogTitle>
+      </DialogHeader>
+       <!-- Basic Info -->
+        <div class="mb-3 space-y-2">
+          <InfoRow label="Status">
+            <Badge :class="getTransactionBadgeClass(transaction)">
+              {{ getTransactionStatus(transaction) }}
+            </Badge>
+          </InfoRow>
+          <InfoRow label="Address">
+            <div class="flex items-center gap-1">
+              <Kbd>{{ transaction.address }}</Kbd>
+              <Badge class="ms-2">{{ transaction.addressType }}</Badge>
+            </div>
+          </InfoRow>
+          <InfoRow label="Tx Hash">
+            <Kbd>{{ getActualTransactionHash(transaction) }}</Kbd>
+          </InfoRow>
+          <InfoRow label="Timestamp">
+            <span>{{ new Date(transaction.timestamp).toLocaleString() }}</span>
+          </InfoRow>
         </div>
         
         <!-- Cosmos Transaction Details -->
@@ -43,46 +35,37 @@
           <h6 class="text-primary mb-2">Cosmos Transaction Details</h6>
           
           <div v-if="cosmosData" class="mb-3">
-            <table class="table table-sm">
-              <tbody>
-                <tr v-if="cosmosData.block_height">
-                  <td class="text-muted">Block Height:</td>
-                  <td>{{ cosmosData.block_height }}</td>
-                </tr>
-                <tr v-if="cosmosData.gas_used">
-                  <td class="text-muted">Gas Used / Wanted:</td>
-                  <td>{{ cosmosData.gas_used }} / {{ cosmosData.gas_wanted || 'N/A' }}</td>
-                </tr>
-                <tr v-if="cosmosData.code !== undefined">
-                  <td class="text-muted">Code:</td>
-                  <td>
-                    <span class="badge" :class="cosmosData.code === 0 ? 'bg-success' : 'bg-danger'">
-                      {{ cosmosData.code }}
-                    </span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <InfoRow label="Block Height" v-if="cosmosData.block_height">
+            {{ cosmosData.block_height }}
+          </InfoRow>
+          <InfoRow label="Gas Used / Wanted" v-if="cosmosData.gas_used">
+            {{ cosmosData.gas_used }} / {{ cosmosData.gas_wanted || 'N/A' }}
+          </InfoRow>
+          <InfoRow label="Code" v-if="cosmosData.code">
+            <Badge :class="cosmosData.code === 0 ? 'bg-green-500' : 'bg-red-500'">
+              {{ cosmosData.code }}
+            </Badge>
+          </InfoRow>
           </div>
           
           <!-- REST API URL Button -->
           <div v-if="cosmosRestApiUrl" class="text-center mb-3">
             <a :href="cosmosRestApiUrl" target="_blank" class="btn btn-outline-info btn-sm">
-              <i class="fas fa-external-link-alt me-1"></i>Open REST API Response
+              <i class="fas fa-external-link-alt"></i>Open REST API Response
             </a>
           </div>
           
           <!-- Toggle Full JSON -->
           <div class="text-center mb-3">
-            <button class="btn btn-outline-secondary btn-sm" @click="showFullJson = !showFullJson">
+            <Button variant="outline" size="sm" @click="showFullJson = !showFullJson">
               <i class="fas" :class="showFullJson ? 'fa-eye-slash' : 'fa-eye'"></i>
               {{ showFullJson ? 'Hide' : 'Show' }} Full Response
-            </button>
+            </Button>
           </div>
           
           <!-- Full JSON -->
           <div v-if="showFullJson && transaction.data?.result" class="json-container">
-            <pre>{{ JSON.stringify(transaction.data.result, null, 2) }}</pre>
+            <pre class="text-xs">{{ JSON.stringify(transaction.data.result, null, 2) }}</pre>
           </div>
         </div>
         
@@ -90,41 +73,30 @@
         <div v-else-if="isEvmTransaction && evmData" class="mb-3">
           <h6 class="text-primary mb-2">EVM Transaction Details</h6>
           
-          <table class="table table-sm">
-            <tbody>
-              <tr v-if="evmData.blockNumber">
-                <td class="text-muted">Block Number:</td>
-                <td>{{ evmData.blockNumber }}</td>
-              </tr>
-              <tr v-if="evmData.from">
-                <td class="text-muted">From:</td>
-                <td><code class="small">{{ evmData.from }}</code></td>
-              </tr>
-              <tr v-if="evmData.to">
-                <td class="text-muted">To:</td>
-                <td><code class="small">{{ evmData.to }}</code></td>
-              </tr>
-              <tr v-if="evmData.gasUsed">
-                <td class="text-muted">Gas Used:</td>
-                <td>{{ evmData.gasUsed }}</td>
-              </tr>
-              <tr v-if="evmData.status !== undefined">
-                <td class="text-muted">Status:</td>
-                <td>
-                  <span class="badge" :class="evmData.status === 1 ? 'bg-success' : 'bg-danger'">
-                    {{ evmData.status === 1 ? 'Success' : 'Failed' }}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <InfoRow label="Block Number" v-if="evmData.blockNumber">
+            {{ evmData.blockNumber }}
+          </InfoRow>
+          <InfoRow label="From" v-if="evmData.from">
+            {{ evmData.from }}
+          </InfoRow>
+          <InfoRow label="To" v-if="evmData.to">
+            {{ evmData.to }}
+          </InfoRow>
+          <InfoRow label="Gas Used" v-if="evmData.gasUsed">
+            {{ evmData.gasUsed }}
+          </InfoRow>
+          <InfoRow label="Status" v-if="evmData.status !== undefined">
+            <Badge :class="evmData.status === 1 ? 'bg-green-500' : 'bg-red-500'">
+            {{ evmData.status === 1 ? 'Success' : 'Failed' }}
+            </Badge>
+          </InfoRow>
           
           <!-- Toggle Full JSON -->
           <div class="text-center mb-3">
-            <button class="btn btn-outline-secondary btn-sm" @click="showFullJson = !showFullJson">
+            <Button variant="outline" size="sm" @click="showFullJson = !showFullJson">
               <i class="fas" :class="showFullJson ? 'fa-eye-slash' : 'fa-eye'"></i>
               {{ showFullJson ? 'Hide' : 'Show' }} Full Response
-            </button>
+            </Button>
           </div>
           
           <!-- Full JSON -->
@@ -174,21 +146,35 @@
             </div>
           </div>
         </div>
-      </div>
-      
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" @click="$emit('close')">Close</button>
-        <a v-if="explorerUrl" :href="explorerUrl" target="_blank" class="btn btn-primary">
-          <i class="fas fa-external-link-alt me-1"></i>View on Explorer
-        </a>
-      </div>
-    </div>
-  </div>
+      <DialogFooter>
+        <DialogClose as-child>
+          <Button variant="outline" class="cursor-pointer">Close</Button>
+        </DialogClose>
+        <Button class="text-white cursor-pointer" as="a"
+              :href="explorerUrl" target="_blank"  style="background: var(--cosmos-gradient)">
+          <i class="fas fa-external-link-alt"></i>
+          View on Explorer</Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup>
 import { computed, ref } from 'vue';
 import { useConfig } from '../composables/useConfig';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from './ui/dialog';
+import { Kbd } from './ui/kbd';
 
 const props = defineProps({
   transaction: {
@@ -265,7 +251,7 @@ const _cosmosRestApiUrl = computed(() => {
   return null;
 });
 
-const _explorerUrl = computed(() => {
+const explorerUrl = computed(() => {
   const result = props.transaction.data?.result;
 
   // Use provided explorer URL first
@@ -299,7 +285,7 @@ const getActualTransactionHash = (tx) => {
   return result.transaction_hash || result.hash || result.transactions?.[0] || tx.hash || null;
 };
 
-const _getTransactionStatus = (tx) => {
+const getTransactionStatus = (tx) => {
   if (!tx.success) {
     return 'Failed';
   }
@@ -309,17 +295,17 @@ const _getTransactionStatus = (tx) => {
   return 'Success';
 };
 
-const _getTransactionBadgeClass = (tx) => {
+const getTransactionBadgeClass = (tx) => {
   if (!tx.success) {
-    return 'bg-danger';
+    return 'bg-gray-500 text-white';
   }
   if (tx.data?.result?.status === 'no_tokens_sent' || tx.data?.result?.tokens_sent?.length === 0) {
-    return 'bg-warning text-dark';
+    return 'bg-yellow-500 text-dark';
   }
-  return 'bg-success';
+  return 'bg-green-500 text-white';
 };
 
-const _formatTokenAmount = (amount, decimals = 18) => {
+const formatTokenAmount = (amount, decimals = 18) => {
   if (!amount) return '0';
 
   try {
@@ -340,88 +326,25 @@ const _formatTokenAmount = (amount, decimals = 18) => {
 };
 </script>
 
+<script>
+export default {
+  components: {
+    InfoRow: {
+      props: {
+        label: String
+      },
+      template: `
+        <div class="flex md:items-center gap-2 md:flex-row flex-col">
+          <p class="text-sm text-gray-500">{{ label }}:</p>
+          <slot />
+        </div>
+      `
+    }
+  }
+}
+</script>
+
 <style scoped>
-.modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-
-.modal-content {
-  background: var(--bg-primary);
-  border-radius: 12px;
-  width: 90%;
-  max-width: 800px;
-  max-height: 90vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.modal-header {
-  padding: 1rem;
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-title {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--cosmos-accent);
-}
-
-.modal-body {
-  padding: 1rem;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.modal-footer {
-  padding: 1rem;
-  border-top: 1px solid var(--border-color);
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-}
-
-.btn-close {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  line-height: 1;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 0;
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-close:hover {
-  color: var(--text-primary);
-}
-
-.table {
-  color: var(--text-primary);
-  margin-bottom: 0;
-}
-
-.table td {
-  padding: 0.5rem;
-  border-color: var(--border-color);
-}
 
 .json-container {
   background: var(--bg-secondary);
@@ -438,18 +361,6 @@ const _formatTokenAmount = (amount, decimals = 18) => {
   font-size: 0.875rem;
   white-space: pre-wrap;
   word-break: break-word;
-}
-
-.bg-success {
-  background-color: #28a745;
-}
-
-.bg-danger {
-  background-color: #dc3545;
-}
-
-.bg-warning {
-  background-color: #ffc107;
 }
 
 .alert {

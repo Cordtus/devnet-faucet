@@ -3,7 +3,7 @@
     <div class="modal-backdrop" @click="closeModal"></div>
     <div class="modal-content">
       <h5 class="modal-title">
-        <i class="fas fa-wallet me-2"></i>
+        <i class="fas fa-wallet"></i>
         Connect Mobile Wallet
       </h5>
       

@@ -17,7 +17,7 @@
             type="button"
             role="tab"
           >
-            <i class="fas fa-atom me-2"></i>Cosmos
+            <i class="fas fa-atom"></i>Cosmos
           </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -28,7 +28,7 @@
             type="button"
             role="tab"
           >
-            <i class="fab fa-ethereum me-2"></i>EVM
+            <i class="fab fa-ethereum"></i>EVM
           </button>
         </li>
       </ul>

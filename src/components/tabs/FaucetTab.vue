@@ -1,181 +1,105 @@
 <template>
   <div>
-    <div class="card">
-      <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-faucet me-2"></i>Request Tokens</h5>
-      </div>
-      <div class="card-body">
-        <p class="text-muted mb-3">
-          Enter your wallet address to receive test tokens or connect your wallet.
-        </p>
-        
-        <!-- Wallet Connection Section -->
-        <div class="mb-4">
-          <div class="row">
-            <!-- Cosmos Wallet (Keplr) -->
-            <div class="col-md-6 mb-2">
-              <div class="d-flex gap-2">
-                <button 
-                  type="button" 
-                  class="wallet-btn flex-grow-1" 
-                  :class="{ 'connected': cosmosWallet.connected }"
-                  @click="cosmosWallet.connected ? disconnectKeplr() : handleCosmosConnect()"
-                  :disabled="cosmosWallet.connecting || !config"
-                >
-                  <span v-if="cosmosWallet.connecting" class="loading-spinner me-2"></span>
-                  <i v-else class="fas fa-atom me-2"></i>
-                  <span v-if="cosmosWallet.connected">
-                    Connected: {{ formatAddress(cosmosWallet.address) }}
-                  </span>
-                  <span v-else-if="cosmosWallet.connecting">
-                    Connecting to Keplr...
-                  </span>
-                  <span v-else>
-                    Connect Keplr Wallet
-                  </span>
-                </button>
-              </div>
-            </div>
-            
-            <!-- EVM Wallet (Reown AppKit) -->
-            <div class="col-md-6 mb-2">
-              <div class="d-flex gap-2">
-                <button 
-                  type="button" 
-                  class="wallet-btn flex-grow-1" 
-                  :class="{ 'connected': evmWallet.connected }"
-                  @click="evmWallet.connected ? handleEvmDisconnect() : handleEvmConnect()"
-                  :disabled="evmWallet.connecting"
-                >
-                  <span v-if="evmWallet.connecting" class="loading-spinner me-2"></span>
-                  <i v-else class="fab fa-ethereum me-2"></i>
-                  <span v-if="evmWallet.connected">
-                    Connected: {{ formatAddress(evmWallet.address) }}
-                  </span>
-                  <span v-else-if="evmWallet.connecting">
-                    Connecting...
-                  </span>
-                  <span v-else>
-                    Connect EVM Wallet
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
+    <div class="border relative border-[#5E5E5E40] rounded-lg bg-linear-to-r from-[#0D0F0F] to-[#0A0C0C] p-8 space-y-6">
+      <!-- top-left glowing line (placed in wrapper, not clipped) -->
+        <div class="absolute -top-px left-[20%] w-[25%] h-px bg-[linear-gradient(-90deg,rgba(0,255,77,0)_0%,#30FF6E_49.23%,#FFFFFF_100%)]"></div>
+        <!-- top-left dot (moved above the clipped edge, fully visible) -->
+        <div class="absolute -top-0.5 left-[20%] w-1 h-1 z-10 bg-[#C8FFD8]"></div>
+
+        <div class="space-y-1">
+          <p class="text-xl font-medium text-white">
+            {{evmWallet.connected ? "Wallet Connected" : "Connect browser wallet"}}
+          </p>
+          <p class="text-base font-normal text-[#626C71]">
+            {{evmWallet.connected
+              ? "Your wallet is connected and ready to receive testnet tokens"
+              : "New here? Add testnet to your wallet"}}
+          </p>
         </div>
-        
-        <!-- Address Input -->
-        <div class="mb-3">
-          <label class="form-label text-muted">Wallet Address</label>
-          <div class="input-group">
-            <input 
-              type="text" 
-              class="form-control" 
-              v-model="address"
-              placeholder="republic... or 0x..."
-              :class="{ 
-                'is-valid': address && isValidAddress, 
-                'is-invalid': address && !isValidAddress 
-              }"
-            >
-            <!-- Connected Wallet Quick Select / Request Button -->
-            <div v-if="hasConnectedWallets" class="btn-group" role="group">
-              <!-- Main button for request action -->
-              <button 
-                class="btn btn-sm wallet-request-btn" 
-                :class="{ 'has-valid-address': isValidAddress }"
-                type="button"
-                @click="requestToken"
-                :disabled="!isValidAddress || isLoading"
-                :title="isValidAddress ? 'Request tokens' : 'Enter a valid address'"
-              >
+
+        <div class="space-y-2">
+          <div>
+          <InputField :is-connected="evmWallet.connected" className="!bg-transparent" placeholder="republic... or 0x..." v-model="address" :full-width="true">
+            <template v-if="hasConnectedWallets" #rightSection>
+              <ButtonGroup>
+              <Button 
+              variant="outline"
+              @click="requestToken"
+                :disabled="!isValidAddress || isLoading">
                 <i v-if="isLoading" class="fas fa-spinner fa-spin me-1"></i>
                 <i v-else-if="!isValidAddress" class="fas fa-wallet me-1"></i>
                 <i v-else class="fas fa-faucet me-1"></i>
                 {{ isLoading ? 'Processing' : (isValidAddress ? 'Request' : 'Wallet') }}
-              </button>
-              <!-- Dropdown button for wallet selection -->
-              <div class="btn-group" role="group">
-                <button 
-                  class="btn btn-sm dropdown-toggle dropdown-toggle-split wallet-dropdown-btn"
-                  type="button" 
-                  data-bs-toggle="dropdown" 
-                  aria-expanded="false"
-                  title="Switch wallet"
-                >
-                  <i class="fas fa-chevron-down"></i>
-                  <span class="visually-hidden">Toggle Dropdown</span>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                  <li v-if="cosmosWallet.connected">
-                    <a 
-                      class="dropdown-item wallet-option" 
-                      href="#" 
-                      @click.prevent="useCosmosAddress"
-                      @mouseenter="hoveringWallet = cosmosWallet.address"
-                      @mouseleave="hoveringWallet = ''"
-                      :title="`Use ${cosmosWallet.address}`"
-                    >
-                      <i class="fas fa-atom me-2"></i>
-                      <span class="wallet-address">{{ formatAddress(cosmosWallet.address) }}</span>
+              </Button>
+               <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                  <Button variant="outline">
+                    <i class="fas fa-ellipsis-vertical"></i>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem v-if="cosmosWallet.connected" @click="useCosmosAddress">
+                    <i class="fas fa-atom"></i>
+                      <span class="text-sm">{{ formatAddress(cosmosWallet.address) }}</span>
                       <small class="text-muted ms-1">(Cosmos)</small>
-                    </a>
-                  </li>
-                  <li v-if="evmWallet.connected">
-                    <a 
-                      class="dropdown-item wallet-option" 
-                      href="#" 
-                      @click.prevent="useEvmAddress"
-                      @mouseenter="hoveringWallet = evmWallet.address"
-                      @mouseleave="hoveringWallet = ''"
-                      :title="`Use ${evmWallet.address}`"
-                    >
-                      <i class="fab fa-ethereum me-2"></i>
-                      <span class="wallet-address">{{ formatAddress(evmWallet.address) }}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem v-if="evmWallet.connected" @click="useEvmAddress">
+                    <i class="fab fa-ethereum"></i>
+                      <span class="text-sm">{{ formatAddress(evmWallet.address) }}</span>
                       <small class="text-muted ms-1">(EVM)</small>
-                    </a>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          <small v-if="isValidAddress" class="text-success">
-            <i class="fas fa-check-circle me-1"></i>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              </ButtonGroup>
+            </template>
+          </InputField>
+          <small v-if="isValidAddress" class="flex items-center gap-1 text-[#30FF6E] animate-pulse-subtle">
+            <i class="fas fa-check-circle"></i>
             Valid {{ addressType }} address
-            <span v-if="addressMatchesWallet" class="ms-1">
+            <span v-if="addressMatchesWallet" class="ml-1 text-[#C8FFD8]">
               <i class="fas fa-link"></i>
               ({{ connectedWalletType }})
             </span>
           </small>
-          <small v-else-if="address" class="text-danger">
-            <i class="fas fa-exclamation-circle me-1"></i>
+          <small v-else-if="address" class="flex items-center gap-1 text-red-500">
+            <i class="fas fa-exclamation-circle"></i>
             Invalid address format
           </small>
+
+<br/>
+          <!-- Faucet usage info -->
+          <div class="text-base font-normal text-[#626C71]">
+            <p class="text-xs sm:text-sm text-[#626C71] flex items-start gap-2">
+              <i class="text-base font-normal text-[#626C71]"></i>
+              <span>Logged when a wallet uses the faucet, then have them wait <span class="text-[#30FF6E] font-semibold">6 hours</span> before using it again.</span>
+            </p>
+          </div>
+        </div>
         </div>
         
         <!-- Submit Button (only show if no wallets connected) -->
-        <button 
+        <Button
           v-if="!hasConnectedWallets"
-          class="btn btn-primary w-100 mt-3"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary hover:bg-primary/90 h-9 has-[>svg]:px-3 bg-linear-to-r w-full from-[#7CFFB5] to-[#00FF6F] text-black font-medium px-6 py-1 text-base rounded-full border-[#5E5E5E40] border hover:from-[#6EE6A3] hover:to-[#00E65A] transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           @click="requestToken"
           :disabled="!isValidAddress || isLoading"
         >
-          <span v-if="isLoading">
-            <span class="loading-spinner me-2"></span>
+          <span v-if="isLoading" class="flex items-center gap-2">
+            <span class="loading-spinner"></span>
             Processing...
           </span>
-          <span v-else>
-            <i class="fas fa-faucet me-2"></i>
+          <span v-else class="flex items-center gap-2">
+            <i class="fas fa-faucet"></i>
             Request Tokens
           </span>
-        </button>
+        </Button>
         
         <!-- Messages -->
         <div v-if="message" class="mt-3" v-html="message"></div>
         
         <!-- Balances -->
         <FaucetBalances :address="address" :is-valid="isValidAddress" :hovering-wallet="hoveringWallet" />
-      </div>
+      <!-- </div> -->
     </div>
     
   </div>
@@ -187,8 +111,17 @@ import { useConfig } from '../../composables/useConfig';
 import { useTransactions } from '../../composables/useTransactions';
 import { useWalletStore } from '../../composables/useWalletStore';
 import FaucetBalances from '../FaucetBalances.vue';
+import InputField from '../InputField.vue';
+import { Button } from '../ui/button';
+import { ButtonGroup } from '../ui/button-group';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 
-const { cosmosWallet, evmWallet, connectKeplr, disconnectKeplr, disconnectEvm } = useWalletStore();
+const { cosmosWallet, evmWallet } = useWalletStore();
 const { config } = useConfig();
 const { addTransactionToHistory } = useTransactions();
 
@@ -263,67 +196,6 @@ const isMobile = () => {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 };
 
-const handleCosmosConnect = async () => {
-  if (isMobile()) {
-    // Check if we're in Keplr's in-app browser
-    if (window.keplr) {
-      // We're already in Keplr browser, just connect normally
-      await connectKeplr(config.value?.network);
-    } else {
-      // For mobile, just provide clear instructions since chain might not be recognized
-      const _isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-      const _isAndroid = /Android/i.test(navigator.userAgent);
-
-      // Show instructions
-      message.value = `
-        <div class="alert alert-info alert-dismissible show fade" role="alert">
-          <h6 class="alert-heading">
-            <i class="fas fa-mobile-alt me-2"></i>Keplr Mobile Instructions
-          </h6>
-          <p class="mb-3">To use your Keplr wallet:</p>
-          
-          <ol class="mb-3">
-            <li>Open the Keplr app</li>
-            <li>Select your wallet</li>
-            <li>Copy your wallet address</li>
-            <li>Return here and paste it in the wallet address field above</li>
-          </ol>
-
-          <div class="d-grid gap-2 mb-3">
-            <button class="btn btn-primary btn-sm" onclick="navigator.clipboard.readText().then(text => {
-              const input = document.querySelector('input[placeholder*=republic]');
-              if (input && (text.startsWith('republic') || text.startsWith('0x'))) {
-                input.value = text;
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-              } else {
-                alert('Please copy a valid wallet address first');
-              }
-            }).catch(() => alert('Please paste your address manually'))">
-              <i class="fas fa-paste me-2"></i>
-              Paste Address from Clipboard
-            </button>
-          </div>
-
-          <p class="mb-0 small text-muted">
-            <i class="fas fa-info-circle me-1"></i>
-            This devnet chain may not be listed in Keplr. Just copy your address manually.
-          </p>
-          
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-      `;
-    }
-  } else {
-    connectKeplr(config.value?.network);
-  }
-};
-
-const handleEvmConnect = () => {
-  // For both mobile and desktop, use the WalletConnect modal
-  // which handles mobile wallets properly
-  openModal();
-};
-
 const openModal = () => {
   if (openAppKitModal) {
     try {
@@ -349,29 +221,26 @@ const openModal = () => {
   }
 };
 
-const handleEvmDisconnect = async () => {
-  if (disconnectAppKit) {
-    await disconnectAppKit();
-  }
-  disconnectEvm();
-};
-
 const requestToken = async () => {
   if (!isValidAddress.value) {
     message.value = `
-      <div class="alert alert-warning">
-        <h6><i class="fas fa-exclamation-circle me-2"></i>Invalid Address</h6>
-        <p class="mb-0">Please enter a valid Cosmos (cosmos...) or EVM (0x...) address</p>
+      <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+        <h6 class="text-yellow-800 font-semibold mb-2 flex items-center">
+          <i class="fas fa-exclamation-circle mr-2"></i>Invalid Address
+        </h6>
+        <p class="text-yellow-700 text-sm mb-0">Please enter a valid Cosmos (cosmos...) or EVM (0x...) address</p>
       </div>`;
     return;
   }
 
   message.value = `
-    <div class="alert alert-info">
-      <h6><i class="fas fa-clock me-2"></i>Processing Transaction</h6>
-      <div class="d-flex align-items-center">
-        <div class="loading-spinner me-2"></div>
-        <span>Sending tokens to ${addressType.value} address...</span>
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+      <h6 class="text-blue-800 font-semibold mb-2 flex items-center">
+        <i class="fas fa-clock mr-2"></i>Processing Transaction
+      </h6>
+      <div class="flex items-center">
+        <div class="loading-spinner mr-2"></div>
+        <span class="text-blue-700">Sending tokens to ${addressType.value} address...</span>
       </div>
     </div>`;
 
@@ -420,29 +289,29 @@ const requestToken = async () => {
       if (customMessage?.includes('ERC20 tokens')) {
         // For Cosmos addresses that can't receive ERC20 tokens
         messageContent = `
-          <div class="alert alert-warning alert-dismissible show fade" role="alert">
-              <h6 class="alert-heading">
-                <i class="fas fa-info-circle me-2"></i>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 relative">
+              <h6 class="text-yellow-800 font-semibold mb-2 flex items-center">
+                <i class="fas fa-info-circle mr-2"></i>
                 No Tokens Sent
               </h6>
-              <p class="mb-2"><strong>This wallet already holds the maximum amount of ${tokenList} the faucet allows.</strong></p>
-              <p class="mb-0 small text-muted">
-                <i class="fas fa-exclamation-triangle me-1"></i>
+              <p class="text-yellow-700 mb-2"><strong>This wallet already holds the maximum amount of ${tokenList} the faucet allows.</strong></p>
+              <p class="text-yellow-600 text-sm mb-0">
+                <i class="fas fa-exclamation-triangle mr-1"></i>
                 Note: ERC20 tokens are only available to EVM (0x...) addresses. Connect an EVM wallet to receive WBTC, PEPE, and USDT.
               </p>
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              <button type="button" class="absolute top-2 right-2 text-yellow-800 hover:text-yellow-900" aria-label="Close">&times;</button>
           </div>
         `;
       } else {
         // Standard message for other cases
         messageContent = `
-          <div class="alert alert-warning alert-dismissible show fade" role="alert">
-              <h6 class="alert-heading">
-                <i class="fas fa-info-circle me-2"></i>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 relative">
+              <h6 class="text-yellow-800 font-semibold mb-2 flex items-center">
+                <i class="fas fa-info-circle mr-2"></i>
                 No Tokens Sent
               </h6>
-              <p class="mb-0"><strong>This wallet already holds the maximum amount of ${tokenList} the faucet allows.</strong></p>
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              <p class="text-yellow-700 mb-0"><strong>This wallet already holds the maximum amount of ${tokenList} the faucet allows.</strong></p>
+              <button type="button" class="absolute top-2 right-2 text-yellow-800 hover:text-yellow-900" aria-label="Close">&times;</button>
           </div>
         `;
       }
@@ -465,31 +334,31 @@ const requestToken = async () => {
         const notSentTokensList = data.result.tokens_not_sent.map((t) => t.symbol).join(', ');
 
         message.value = `
-          <div class="alert alert-success alert-dismissible show fade mb-2" role="alert">
-              <h6 class="alert-heading">
-                <i class="fas fa-check-circle me-2"></i>
+          <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-2 relative">
+              <h6 class="text-green-800 font-semibold mb-2 flex items-center">
+                <i class="fas fa-check-circle mr-2"></i>
                 Tokens Sent Successfully!
               </h6>
-              <p class="mb-2"><strong>Sent:</strong> ${sentTokensList}</p>
-              ${txHash ? `<p class="mb-2"><strong>Transaction:</strong> <code class="small">${txHash}</code></p>` : ''}
-              ${explorerUrl ? `<p class="mb-0"><a href="${explorerUrl}" target="_blank" class="btn btn-outline-primary btn-sm"><i class="fas fa-external-link-alt me-1"></i>View on Explorer</a></p>` : ''}
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              <p class="text-green-700 mb-2"><strong>Sent:</strong> ${sentTokensList}</p>
+              ${txHash ? `<p class="text-green-700 mb-2"><strong>Transaction:</strong> <code class="text-sm bg-green-100 px-2 py-1 rounded">${txHash}</code></p>` : ''}
+              ${explorerUrl ? `<p class="mb-0"><a href="${explorerUrl}" target="_blank" class="inline-flex items-center px-3 py-1.5 text-sm border border-blue-600 text-blue-600 rounded hover:bg-blue-50 transition-colors"><i class="fas fa-external-link-alt mr-1"></i>View on Explorer</a></p>` : ''}
+              <button type="button" class="absolute top-2 right-2 text-green-800 hover:text-green-900" aria-label="Close">&times;</button>
           </div>
-          <div class="alert alert-warning alert-dismissible show fade" role="alert">
-              <h6 class="alert-heading">
-                <i class="fas fa-info-circle me-2"></i>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 relative">
+              <h6 class="text-yellow-800 font-semibold mb-2 flex items-center">
+                <i class="fas fa-info-circle mr-2"></i>
                 Some Tokens Not Sent
               </h6>
-              <p class="mb-2"><strong>This wallet already holds the maximum amount of ${notSentTokensList} the faucet allows.</strong></p>
+              <p class="text-yellow-700 mb-2"><strong>This wallet already holds the maximum amount of ${notSentTokensList} the faucet allows.</strong></p>
               ${
                 addressType.value === 'Cosmos' && data.result?.ineligible_tokens?.length > 0
-                  ? `<p class="mb-0 small text-muted">
-                  <i class="fas fa-exclamation-triangle me-1"></i>
+                  ? `<p class="text-yellow-600 text-sm mb-0">
+                  <i class="fas fa-exclamation-triangle mr-1"></i>
                   Note: ERC20 tokens are only available to EVM (0x...) addresses.
                 </p>`
                   : ''
               }
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              <button type="button" class="absolute top-2 right-2 text-yellow-800 hover:text-yellow-900" aria-label="Close">&times;</button>
           </div>
         `;
       } else {
@@ -501,20 +370,20 @@ const requestToken = async () => {
               return `${amount} ${token.symbol}`;
             })
             .join(', ');
-          tokenSummaryHtml = `<p class="mb-2"><strong>Sent:</strong> ${sentTokensList}</p>`;
+          tokenSummaryHtml = `<p class="text-green-700 mb-2"><strong>Sent:</strong> ${sentTokensList}</p>`;
         }
 
         message.value = `
-          <div class="alert alert-${isSuccess ? 'success' : 'danger'} alert-dismissible show fade" role="alert">
-              <h6 class="alert-heading">
-                <i class="fas fa-${isSuccess ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+          <div class="${isSuccess ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'} border rounded-lg p-4 mb-4 relative">
+              <h6 class="${isSuccess ? 'text-green-800' : 'text-red-800'} font-semibold mb-2 flex items-center">
+                <i class="fas fa-${isSuccess ? 'check-circle' : 'exclamation-triangle'} mr-2"></i>
                 ${isSuccess ? 'Tokens Sent Successfully!' : 'Request Failed'}
               </h6>
               ${tokenSummaryHtml}
-              ${txHash ? `<p class="mb-2"><strong>Transaction:</strong> <code class="small">${txHash}</code></p>` : ''}
-              ${explorerUrl ? `<p class="mb-2"><a href="${explorerUrl}" target="_blank" class="btn btn-outline-primary btn-sm"><i class="fas fa-external-link-alt me-1"></i>View on Explorer</a></p>` : ''}
-              <p class="mb-0 small text-muted">Full transaction details saved to Recent Txs tab.</p>
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              ${txHash ? `<p class="${isSuccess ? 'text-green-700' : 'text-red-700'} mb-2"><strong>Transaction:</strong> <code class="text-sm ${isSuccess ? 'bg-green-100' : 'bg-red-100'} px-2 py-1 rounded">${txHash}</code></p>` : ''}
+              ${explorerUrl ? `<p class="mb-2"><a href="${explorerUrl}" target="_blank" class="inline-flex items-center px-3 py-1.5 text-sm border border-blue-600 text-blue-600 rounded hover:bg-blue-50 transition-colors"><i class="fas fa-external-link-alt mr-1"></i>View on Explorer</a></p>` : ''}
+              <p class="${isSuccess ? 'text-green-600' : 'text-red-600'} text-sm mb-0">Full transaction details saved to Recent Txs tab.</p>
+              <button type="button" class="absolute top-2 right-2 ${isSuccess ? 'text-green-800 hover:text-green-900' : 'text-red-800 hover:text-red-900'}" aria-label="Close">&times;</button>
           </div>
         `;
       }
@@ -536,12 +405,12 @@ const requestToken = async () => {
     });
 
     message.value = `
-      <div class="alert alert-danger alert-dismissible show fade" role="alert">
-        <h6 class="alert-heading">
-          <i class="fas fa-exclamation-triangle me-2"></i>Network Error
+      <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 relative">
+        <h6 class="text-red-800 font-semibold mb-2 flex items-center">
+          <i class="fas fa-exclamation-triangle mr-2"></i>Network Error
         </h6>
-        <p class="mb-0">${err.message}</p>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <p class="text-red-700 mb-0">${err.message}</p>
+        <button type="button" class="absolute top-2 right-2 text-red-800 hover:text-red-900" aria-label="Close">&times;</button>
       </div>`;
   } finally {
     isLoading.value = false;
@@ -569,295 +438,3 @@ const formatBalance = (amount, decimals = 0) => {
   return num.toLocaleString();
 };
 </script>
-
-<style scoped>
-/* Special Request Tokens button */
-.btn-request-tokens {
-  background: linear-gradient(135deg, #00ff88 0%, var(--cosmos-accent) 100%);
-  border: 3px solid rgba(0, 255, 136, 0.3);
-  color: #000;
-  font-weight: 700;
-  font-size: 1.1rem;
-  padding: 1rem 2.5rem;
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-  width: auto;
-  max-width: 320px;
-  margin: 1.5rem auto;
-  display: block;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  box-shadow: 0 0 30px rgba(0, 255, 136, 0.2);
-}
-
-.btn-request-tokens:hover {
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 8px 30px rgba(0, 255, 136, 0.5);
-  border-color: rgba(0, 255, 136, 0.6);
-  color: #000;
-}
-
-.btn-request-tokens:active {
-  transform: translateY(0) scale(1);
-}
-
-.btn-request-tokens:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-  background: linear-gradient(135deg, #666 0%, #888 100%);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.btn-request-tokens::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
-  background: linear-gradient(45deg, transparent, rgba(0, 255, 136, 0.4), transparent);
-  z-index: -1;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  border-radius: 12px;
-}
-
-.btn-request-tokens:hover::before {
-  opacity: 1;
-  animation: glow-pulse 2s ease-in-out infinite;
-}
-
-@keyframes glow-pulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.8; }
-}
-
-/* Wallet/Request dropdown button */
-.btn-group {
-  background: var(--bg-secondary);
-  border: 2px solid var(--border-color);
-  border-radius: 0.375rem;
-  padding: 0;
-}
-
-.wallet-request-btn {
-  background: transparent;
-  color: var(--text-primary);
-  padding: 0.5rem 1rem;
-  transition: all 0.2s ease;
-  text-decoration: none;
-  margin: 0;
-  border: none !important;
-  border-radius: 0 !important;
-  border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
-}
-
-.wallet-dropdown-btn {
-  background: transparent;
-  color: var(--text-primary);
-  padding: 0.5rem 0.75rem;
-  transition: all 0.2s ease;
-  border-radius: 0 !important;
-  margin: 0;
-  border: none !important;
-}
-
-.wallet-dropdown-btn::after {
-  display: none;
-}
-
-.wallet-dropdown-btn .fa-chevron-down {
-  font-size: 0.75rem;
-}
-
-.wallet-request-btn:hover:not(:disabled) {
-  background: var(--bg-primary);
-  color: var(--cosmos-accent);
-}
-
-.wallet-dropdown-btn:hover,
-.wallet-dropdown-btn[aria-expanded="true"] {
-  background: var(--bg-primary);
-  color: var(--cosmos-accent);
-}
-
-.wallet-request-btn.has-valid-address {
-  color: var(--cosmos-accent);
-  font-weight: 600;
-}
-
-.wallet-request-btn.has-valid-address:hover:not(:disabled) {
-  background: rgba(0, 255, 136, 0.1);
-}
-
-.wallet-request-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-</style>
-
-<style scoped>
-.wallet-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  color: var(--text-primary);
-  font-weight: 500;
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
-  min-height: 46px;
-}
-
-.wallet-btn:hover {
-  background: var(--bg-secondary);
-  border-color: var(--cosmos-accent);
-  color: var(--cosmos-accent);
-  transform: translateY(-1px);
-}
-
-.wallet-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.wallet-btn.connected {
-  background: var(--bg-secondary);
-  border-color: #28a745;
-  color: #28a745;
-}
-
-.wallet-btn.connected:hover {
-  border-color: var(--cosmos-accent);
-  color: var(--cosmos-accent);
-}
-
-.copy-icon-small {
-  cursor: pointer;
-  opacity: 0.5;
-  transition: opacity 0.2s ease;
-  font-size: 0.875rem;
-}
-
-.copy-icon-small:hover {
-  opacity: 1;
-  color: var(--cosmos-accent);
-}
-
-.font-monospace {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 0.875rem;
-}
-
-/* Input group improvements */
-.input-group > .btn-group {
-  border-radius: 0 0.375rem 0.375rem 0;
-  border-left: none;
-}
-
-.dropdown-toggle::after {
-  display: none;
-}
-
-.dropdown-menu {
-  min-width: 250px;
-  background: var(--bg-secondary);
-  border: 2px solid var(--cosmos-accent);
-  box-shadow: 0 6px 20px rgba(0, 210, 255, 0.2);
-  margin-top: 4px;
-  position: absolute;
-  z-index: 1000;
-}
-
-.dropdown-item {
-  color: var(--text-primary);
-  padding: 0.75rem 1rem;
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-
-.dropdown-item:hover {
-  background: var(--bg-primary);
-  color: var(--cosmos-accent);
-}
-
-.dropdown-item i {
-  width: 20px;
-  text-align: center;
-}
-
-.wallet-address {
-  font-family: monospace;
-  font-size: 0.9rem;
-}
-
-/* Hover effect for dropdown items */
-.dropdown-item:hover {
-  transform: translateX(4px);
-}
-
-/* Mobile responsive styles */
-@media (max-width: 768px) {
-  .wallet-btn {
-    font-size: 0.9rem;
-    padding: 0.65rem 0.85rem;
-    min-height: 42px;
-  }
-  
-  .card-body {
-    padding: 1rem;
-  }
-  
-  .input-group {
-    flex-wrap: nowrap;
-  }
-  
-  .wallet-request-btn {
-    min-width: 90px;
-    font-size: 0.85rem;
-    padding: 0.45rem 0.75rem;
-  }
-  
-  .dropdown-menu {
-    font-size: 0.9rem;
-  }
-  
-  .btn-primary {
-    font-size: 0.95rem;
-    padding: 0.65rem 1.5rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .card-header h5 {
-    font-size: 1.1rem;
-  }
-  
-  .wallet-btn {
-    font-size: 0.85rem;
-    padding: 0.6rem 0.75rem;
-  }
-  
-  .form-control {
-    font-size: 0.9rem;
-  }
-  
-  .wallet-request-btn {
-    min-width: 80px;
-    font-size: 0.8rem;
-  }
-  
-  /* Stack wallet buttons on very small screens */
-  .col-md-6 {
-    margin-bottom: 0.5rem;
-  }
-}
-</style>
