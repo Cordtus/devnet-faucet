@@ -1,7 +1,7 @@
 # fly.toml app configuration file
 # See https://fly.io/docs/reference/configuration/
 
-app = "devnet-faucet"
+app = "republic-devnet-faucet"
 primary_region = "iad"
 
 [build]
