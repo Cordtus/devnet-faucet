@@ -17,6 +17,9 @@ const state = reactive({
 
 export function useWalletStore() {
   const connectKeplr = async (networkConfig) => {
+    console.log('connectKeplr called with networkConfig:', networkConfig);
+    console.log('cosmos config:', networkConfig?.cosmos);
+
     // Check if on mobile
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
@@ -91,20 +94,44 @@ export function useWalletStore() {
         features: ['eth-address-gen', 'eth-key-sign'],
       };
 
+      console.log('Suggesting chain to Keplr:', chainConfig);
       try {
         await window.keplr.experimentalSuggestChain(chainConfig);
+        console.log('Chain suggested successfully');
       } catch (error) {
-        console.warn('Failed to suggest chain, trying to connect anyway:', error);
+        console.error('Failed to suggest chain:', error);
+        alert(`Failed to add Republic AI Devnet to Keplr: ${error.message}`);
+        return;
       }
 
       await window.keplr.enable(chainConfig.chainId);
 
       const offlineSigner = window.keplr.getOfflineSigner(chainConfig.chainId);
       const accounts = await offlineSigner.getAccounts();
+      console.log('Keplr accounts returned:', accounts);
 
       if (accounts.length > 0) {
+        const address = accounts[0].address;
+        console.log('Account address from Keplr:', address);
+
+        // Check if the address has the expected prefix
+        if (!address.startsWith(prefix)) {
+          const gotPrefix = address.substring(0, address.indexOf('1'));
+          console.warn(
+            `Address prefix mismatch! Expected "${prefix}", got "${gotPrefix}". ` +
+              'Keplr has a cached chain config with the wrong prefix.'
+          );
+          alert(
+            `Keplr returned a "${gotPrefix}" address instead of "${prefix}". ` +
+              'Please remove "Republic AI Devnet" (or the old chain) from Keplr settings and try again.\n\n' +
+              'In Keplr: Settings > General > Manage Chain Visibility > find and remove the chain, then reconnect.'
+          );
+          state.cosmosWallet.connecting = false;
+          return;
+        }
+
         state.cosmosWallet.connected = true;
-        state.cosmosWallet.address = accounts[0].address;
+        state.cosmosWallet.address = address;
         state.cosmosWallet.chainId = chainConfig.chainId;
       }
     } catch (error) {
