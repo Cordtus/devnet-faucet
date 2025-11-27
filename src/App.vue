@@ -78,12 +78,14 @@ onMounted(async () => {
   }
 
   if (config.value?.network) {
-    // Dynamically import wallet modules - use Vue-specific imports
-    let createAppKit, WagmiAdapter;
+    // Dynamically import wallet modules
+    let createAppKit, WagmiAdapter, defineChain;
     try {
       const appkitModule = await import('@reown/appkit/vue');
+      const networksModule = await import('@reown/appkit/networks');
       const wagmiModule = await import('@reown/appkit-adapter-wagmi');
       createAppKit = appkitModule.createAppKit;
+      defineChain = networksModule.defineChain;
       WagmiAdapter = wagmiModule.WagmiAdapter;
     } catch (importError) {
       console.error('Failed to load wallet modules:', importError);
@@ -92,31 +94,33 @@ onMounted(async () => {
 
     const projectId = import.meta.env.VITE_REOWN_PROJECT_ID || '2f30532234e2903b2cf2505d144089ac';
     const chainId = config.value.network.evm.chainId;
+    const rpcUrl = config.value.network.evm.rpc;
+    const explorerUrl = config.value.network.evm.explorer || 'https://explorer.republicai.io';
 
-    // Configure custom network with required fields for AppKit
-    const customNetwork = {
+    // Use defineChain to properly create custom network
+    const customNetwork = defineChain({
       id: chainId,
-      name: 'Republic AI Devnet',
       caipNetworkId: `eip155:${chainId}`,
       chainNamespace: 'eip155',
+      name: 'Republic AI Devnet',
       nativeCurrency: {
+        decimals: 18,
         name: 'RAI',
         symbol: 'RAI',
-        decimals: 18,
       },
       rpcUrls: {
         default: {
-          http: [config.value.network.evm.rpc],
+          http: [rpcUrl],
         },
       },
       blockExplorers: {
         default: {
           name: 'Explorer',
-          url: config.value.network.evm.explorer || 'https://explorer.republicai.io',
+          url: explorerUrl,
         },
       },
       testnet: true,
-    };
+    });
 
     const metadata = {
       name: 'Republic AI Devnet Faucet',
