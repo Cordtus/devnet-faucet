@@ -7,7 +7,7 @@ primary_region = "iad"
 [build]
   dockerfile = "Dockerfile"
   [build.args]
-    VITE_REOWN_PROJECT_ID = "cd7b72f30c30b85d21857eba00143387"
+    VITE_REOWN_PROJECT_ID = "2f30532234e2903b2cf2505d144089ac"
 
 [env]
   NODE_ENV = "production"

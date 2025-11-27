@@ -60,17 +60,7 @@
           <div>
           <InputField :is-connected="hasConnectedWallets" className="!bg-transparent" placeholder="republic... or 0x..." v-model="address" :full-width="true">
             <template v-if="hasConnectedWallets" #rightSection>
-              <ButtonGroup>
-              <Button 
-              variant="outline"
-              @click="requestToken"
-                :disabled="!isValidAddress || isLoading">
-                <i v-if="isLoading" class="fas fa-spinner fa-spin me-1"></i>
-                <i v-else-if="!isValidAddress" class="fas fa-wallet me-1"></i>
-                <i v-else class="fas fa-faucet me-1"></i>
-                {{ isLoading ? 'Processing' : (isValidAddress ? 'Request' : 'Wallet') }}
-              </Button>
-               <DropdownMenu>
+              <DropdownMenu>
                 <DropdownMenuTrigger as-child>
                   <Button variant="outline">
                     <i class="fas fa-ellipsis-vertical"></i>
@@ -79,17 +69,16 @@
                 <DropdownMenuContent>
                   <DropdownMenuItem v-if="cosmosWallet.connected" @click="useCosmosAddress">
                     <i class="fas fa-atom"></i>
-                      <span class="text-sm">{{ formatAddress(cosmosWallet.address) }}</span>
-                      <small class="text-muted ms-1">(Cosmos)</small>
+                    <span class="text-sm">{{ formatAddress(cosmosWallet.address) }}</span>
+                    <small class="text-muted ms-1">(Cosmos)</small>
                   </DropdownMenuItem>
                   <DropdownMenuItem v-if="evmWallet.connected" @click="useEvmAddress">
                     <i class="fab fa-ethereum"></i>
-                      <span class="text-sm">{{ formatAddress(evmWallet.address) }}</span>
-                      <small class="text-muted ms-1">(EVM)</small>
+                    <span class="text-sm">{{ formatAddress(evmWallet.address) }}</span>
+                    <small class="text-muted ms-1">(EVM)</small>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              </ButtonGroup>
             </template>
           </InputField>
           <small v-if="isValidAddress" class="flex items-center gap-1 text-[#30FF6E] animate-pulse-subtle">
@@ -108,24 +97,7 @@
 
         </div>
         </div>
-        
-        <!-- Submit Button (only show if no wallets connected) -->
-        <Button
-          v-if="!hasConnectedWallets"
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary hover:bg-primary/90 h-9 has-[>svg]:px-3 bg-linear-to-r w-full from-[#7CFFB5] to-[#00FF6F] text-black font-medium px-6 py-1 text-base rounded-full border-[#5E5E5E40] border hover:from-[#6EE6A3] hover:to-[#00E65A] transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          @click="requestToken"
-          :disabled="!isValidAddress || isLoading"
-        >
-          <span v-if="isLoading" class="flex items-center gap-2">
-            <span class="loading-spinner"></span>
-            Processing...
-          </span>
-          <span v-else class="flex items-center gap-2">
-            <i class="fas fa-faucet"></i>
-            Request Tokens
-          </span>
-        </Button>
-        
+
         <!-- Messages -->
         <div v-if="message" class="mt-3" v-html="message"></div>
         
@@ -145,7 +117,6 @@ import { useWalletStore } from '../../composables/useWalletStore';
 import FaucetBalances from '../FaucetBalances.vue';
 import InputField from '../InputField.vue';
 import { Button } from '../ui/button';
-import { ButtonGroup } from '../ui/button-group';
 import {
   DropdownMenu,
   DropdownMenuContent,

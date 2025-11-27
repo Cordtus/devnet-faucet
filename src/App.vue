@@ -28,8 +28,6 @@
 </template>
 
 <script setup>
-import { createAppKit } from '@reown/appkit';
-import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { onMounted, provide, ref } from 'vue';
 import FAQs from './components/FAQs.vue';
 import Footer from './components/Footer.vue';
@@ -79,6 +77,18 @@ onMounted(async () => {
   }
 
   if (config.value?.network) {
+    // Dynamically import wallet modules to avoid initialization errors
+    let createAppKit, WagmiAdapter;
+    try {
+      const appkitModule = await import('@reown/appkit');
+      const wagmiModule = await import('@reown/appkit-adapter-wagmi');
+      createAppKit = appkitModule.createAppKit;
+      WagmiAdapter = wagmiModule.WagmiAdapter;
+    } catch (importError) {
+      console.error('Failed to load wallet modules:', importError);
+      return;
+    }
+
     // Check if mobile
     const _isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
@@ -116,7 +126,7 @@ onMounted(async () => {
     // Create Wagmi adapter
     const wagmiAdapter = new WagmiAdapter({
       networks: [customNetwork],
-      projectId: import.meta.env.VITE_REOWN_PROJECT_ID || 'YOUR_PROJECT_ID',
+      projectId: import.meta.env.VITE_REOWN_PROJECT_ID || '2f30532234e2903b2cf2505d144089ac',
     });
 
     // Create AppKit modal with enhanced error handling
@@ -152,7 +162,7 @@ onMounted(async () => {
       const appKitInstance = createAppKit({
         adapters: [wagmiAdapter],
         networks: [customNetwork],
-        projectId: import.meta.env.VITE_REOWN_PROJECT_ID || 'YOUR_PROJECT_ID',
+        projectId: import.meta.env.VITE_REOWN_PROJECT_ID || '2f30532234e2903b2cf2505d144089ac',
         metadata,
         features: {
           analytics: false,
