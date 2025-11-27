@@ -98,8 +98,8 @@ onMounted(async () => {
       },
       blockExplorers: {
         default: {
-          name: 'Blockscout',
-          url: config.value.network.evm.explorer || 'https://evm-devnet-1.cloud.blockscout.com',
+          name: 'Explorer',
+          url: config.value.network.evm.explorer || 'https://yaci-explorer.fly.dev',
         },
       },
       testnet: true,

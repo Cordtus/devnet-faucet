@@ -264,12 +264,11 @@ const explorerUrl = computed(() => {
   if (actualHash) {
     if (isEvmTransaction.value) {
       const explorerBase =
-        networkConfig.value.evm?.explorer || 'https://evm-devnet-1.cloud.blockscout.com';
+        networkConfig.value.evm?.explorer || 'https://yaci-explorer.fly.dev';
       return `${explorerBase}/tx/${actualHash}`;
     } else if (isCosmosTransaction.value) {
       const explorerBase =
-        networkConfig.value.cosmos?.explorer ||
-        'https://devnet-explorer.fly.dev/Cosmos%20Evm%20Devnet';
+        networkConfig.value.cosmos?.explorer || 'https://yaci-explorer.fly.dev';
       return `${explorerBase}/tx/${actualHash}`;
     }
   }

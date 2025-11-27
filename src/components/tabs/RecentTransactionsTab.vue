@@ -250,12 +250,12 @@ const getTransactionExplorerUrl = (tx) => {
   // Generate URL based on transaction type and hash
   if (actualHash) {
     if (result.network_type === 'evm' || tx.addressType === 'evm') {
-      // EVM transaction - use blockscout explorer
-      const explorerBase = networkConfig.value.evm?.explorer || 'https://faucet.republicai.io';
+      // EVM transaction - use explorer from config
+      const explorerBase = networkConfig.value.evm?.explorer || 'https://yaci-explorer.fly.dev';
       return `${explorerBase}/tx/${actualHash}`;
     } else if (result.network_type === 'cosmos' || tx.addressType === 'cosmos') {
       // Cosmos transaction - use explorer from config
-      const explorerBase = networkConfig.value.cosmos?.explorer || 'https://faucet.republicai.io';
+      const explorerBase = networkConfig.value.cosmos?.explorer || 'https://yaci-explorer.fly.dev';
       return `${explorerBase}/tx/${actualHash}`;
     }
   }
