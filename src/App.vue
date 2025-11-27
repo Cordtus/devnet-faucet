@@ -79,7 +79,9 @@ onMounted(async () => {
 
   if (config.value?.network) {
     // Dynamically import wallet modules
-    let createAppKit, WagmiAdapter, defineChain;
+    let createAppKit;
+    let WagmiAdapter;
+    let defineChain;
     try {
       const appkitModule = await import('@reown/appkit/vue');
       const networksModule = await import('@reown/appkit/networks');

@@ -232,7 +232,7 @@ const handleCosmosConnect = async () => {
       description: 'Keplr wallet extension is not installed in your browser.',
       action: {
         label: 'Install Keplr',
-        onClick: () => window.open('https://www.keplr.app/download', '_blank')
+        onClick: () => window.open('https://www.keplr.app/download', '_blank'),
       },
       duration: 6000,
     });
@@ -244,7 +244,8 @@ const handleCosmosConnect = async () => {
       await connectKeplr(config.value?.network);
     } else {
       toast.info('Keplr Mobile Instructions', {
-        description: 'Open the Keplr app, select your wallet, copy your address, and paste it in the wallet address field.',
+        description:
+          'Open the Keplr app, select your wallet, copy your address, and paste it in the wallet address field.',
         duration: 8000,
       });
     }
@@ -259,10 +260,11 @@ const handleEvmConnect = () => {
 
   if (!hasWalletProvider) {
     toast.error('EVM Wallet Not Found', {
-      description: 'No EVM wallet extension detected. Please install MetaMask, Coinbase Wallet, or Trust Wallet.',
+      description:
+        'No EVM wallet extension detected. Please install MetaMask, Coinbase Wallet, or Trust Wallet.',
       action: {
         label: 'Install MetaMask',
-        onClick: () => window.open('https://metamask.io/download/', '_blank')
+        onClick: () => window.open('https://metamask.io/download/', '_blank'),
       },
       duration: 6000,
     });

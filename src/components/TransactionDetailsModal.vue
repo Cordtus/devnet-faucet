@@ -263,12 +263,10 @@ const explorerUrl = computed(() => {
   // Generate URL based on transaction type and hash
   if (actualHash) {
     if (isEvmTransaction.value) {
-      const explorerBase =
-        networkConfig.value.evm?.explorer || 'https://explorer.republicai.io';
+      const explorerBase = networkConfig.value.evm?.explorer || 'https://explorer.republicai.io';
       return `${explorerBase}/tx/${actualHash}`;
     } else if (isCosmosTransaction.value) {
-      const explorerBase =
-        networkConfig.value.cosmos?.explorer || 'https://explorer.republicai.io';
+      const explorerBase = networkConfig.value.cosmos?.explorer || 'https://explorer.republicai.io';
       return `${explorerBase}/tx/${actualHash}`;
     }
   }
