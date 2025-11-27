@@ -41,13 +41,6 @@ export default defineConfig({
             '@cosmjs/stargate',
             'cosmjs-types',
           ],
-          'wallet-vendor': [
-            '@reown/appkit',
-            '@reown/appkit-adapter-wagmi',
-            '@wagmi/core',
-            'wagmi',
-            'viem',
-          ],
           'crypto-vendor': [
             'bip39',
             'bip32',

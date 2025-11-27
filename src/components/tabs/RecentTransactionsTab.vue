@@ -251,11 +251,11 @@ const getTransactionExplorerUrl = (tx) => {
   if (actualHash) {
     if (result.network_type === 'evm' || tx.addressType === 'evm') {
       // EVM transaction - use explorer from config
-      const explorerBase = networkConfig.value.evm?.explorer || 'https://yaci-explorer.fly.dev';
+      const explorerBase = networkConfig.value.evm?.explorer || 'https://explorer.republicai.io';
       return `${explorerBase}/tx/${actualHash}`;
     } else if (result.network_type === 'cosmos' || tx.addressType === 'cosmos') {
       // Cosmos transaction - use explorer from config
-      const explorerBase = networkConfig.value.cosmos?.explorer || 'https://yaci-explorer.fly.dev';
+      const explorerBase = networkConfig.value.cosmos?.explorer || 'https://explorer.republicai.io';
       return `${explorerBase}/tx/${actualHash}`;
     }
   }

@@ -264,11 +264,11 @@ const explorerUrl = computed(() => {
   if (actualHash) {
     if (isEvmTransaction.value) {
       const explorerBase =
-        networkConfig.value.evm?.explorer || 'https://yaci-explorer.fly.dev';
+        networkConfig.value.evm?.explorer || 'https://explorer.republicai.io';
       return `${explorerBase}/tx/${actualHash}`;
     } else if (isCosmosTransaction.value) {
       const explorerBase =
-        networkConfig.value.cosmos?.explorer || 'https://yaci-explorer.fly.dev';
+        networkConfig.value.cosmos?.explorer || 'https://explorer.republicai.io';
       return `${explorerBase}/tx/${actualHash}`;
     }
   }

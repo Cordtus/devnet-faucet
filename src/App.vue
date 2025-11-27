@@ -99,7 +99,7 @@ onMounted(async () => {
       blockExplorers: {
         default: {
           name: 'Explorer',
-          url: config.value.network.evm.explorer || 'https://yaci-explorer.fly.dev',
+          url: config.value.network.evm.explorer || 'https://explorer.republicai.io',
         },
       },
       testnet: true,
