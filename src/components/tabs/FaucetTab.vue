@@ -130,7 +130,7 @@
         <div v-if="message" class="mt-3" v-html="message"></div>
         
         <!-- Balances -->
-        <FaucetBalances :address="address" :is-valid="isValidAddress" :hovering-wallet="hoveringWallet" />
+        <FaucetBalances :address="address" :is-valid="isValidAddress" :hovering-wallet="hoveringWallet" @claim="requestToken" />
       <!-- </div> -->
     </div>
     
@@ -138,7 +138,7 @@
 </template>
 
 <script setup>
-import { computed, inject, ref } from 'vue';
+import { computed, inject, ref, watch } from 'vue';
 import { useConfig } from '../../composables/useConfig';
 import { useTransactions } from '../../composables/useTransactions';
 import { useWalletStore } from '../../composables/useWalletStore';
@@ -521,4 +521,23 @@ const formatBalance = (amount, decimals = 0) => {
   }
   return num.toLocaleString();
 };
+
+// Auto-populate address when wallet connects
+watch(
+  () => cosmosWallet.connected,
+  (connected) => {
+    if (connected && cosmosWallet.address && !address.value) {
+      address.value = cosmosWallet.address;
+    }
+  }
+);
+
+watch(
+  () => evmWallet.connected,
+  (connected) => {
+    if (connected && evmWallet.address && !address.value) {
+      address.value = evmWallet.address;
+    }
+  }
+);
 </script>
