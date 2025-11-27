@@ -21,15 +21,18 @@
             <div class="p-3 flex justify-between items-center relative">
               <div class="flex items-center gap-1.5 flex-1 min-w-0">
                 <span class="text-sm sm:text-base font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#30FF6E] to-[#C8FFD8] truncate">{{ getTokenSymbol(token) }}</span>
-                <span class="text-[9px] px-1.5 py-0.5 rounded-full font-bold border whitespace-nowrap" :class="getTokenTypeBadgeClass(token)">
-                  {{ getTokenType(token) }}
-                </span>
               </div>
               <div class="flex items-center gap-2 ml-2">
-                <div class="text-xs font-bold text-[#30FF6E] text-right whitespace-nowrap">{{ formatClaimableAmount(token) }}</div>
-                <div v-if="address && isValid" class="flex items-center">
-                  <span v-if="getTokenStatus(token) === 'available'" class="w-2 h-2 rounded-full bg-[#30FF6E] shadow-[0_0_8px_rgba(48,255,110,0.8)] animate-pulse-subtle inline-block"></span>
-                  <span v-else-if="getTokenStatus(token) === 'maxed'" class="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.6)] inline-block"></span>
+                <button
+                  v-if="address && isValid && getTokenStatus(token) === 'available'"
+                  @click.stop="emit('claim')"
+                  class="text-xs font-bold bg-gradient-to-r from-[#7CFFB5] to-[#00FF6F] text-black px-2 py-1 rounded-md whitespace-nowrap"
+                >
+                  Claim {{ formatClaimableAmount(token) }}
+                </button>
+                <div v-else class="text-xs font-bold text-[#30FF6E] text-right whitespace-nowrap">{{ formatClaimableAmount(token) }}</div>
+                <div v-if="address && isValid && getTokenStatus(token) !== 'available'" class="flex items-center">
+                  <span v-if="getTokenStatus(token) === 'maxed'" class="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.6)] inline-block"></span>
                   <span v-else-if="getTokenStatus(token) === 'incompatible'" class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)] inline-block"></span>
                 </div>
               </div>
@@ -89,9 +92,6 @@
                   <div class="text-lg lg:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#30FF6E] to-[#C8FFD8] truncate">{{ getTokenSymbol(token) }}</div>
                   <div class="text-xs text-[#626C71] font-medium truncate mt-0.5">{{ getTokenName(token) }}</div>
                 </div>
-                <span class="text-[10px] px-2 py-1 rounded-full font-bold border whitespace-nowrap flex-shrink-0" :class="getTokenTypeBadgeClass(token)">
-                  {{ getTokenType(token) }}
-                </span>
               </div>
 
               <!-- Contract/Denom (if exists) -->
@@ -104,8 +104,18 @@
                 <i class="fas fa-copy text-[9px] opacity-30 group-hover/copy:opacity-100 group-hover/copy:text-[#30FF6E] transition-all flex-shrink-0"></i>
               </div>
 
-              <!-- Claim Amount -->
-              <div class="bg-[#30FF6E]/5 border border-[#30FF6E]/25 rounded-lg p-2.5 shadow-[0_0_15px_rgba(48,255,110,0.08)]">
+              <!-- Claim Button -->
+              <button
+                v-if="address && isValid && getTokenStatus(token) === 'available'"
+                @click="emit('claim')"
+                class="w-full bg-gradient-to-r from-[#7CFFB5] to-[#00FF6F] hover:from-[#6EE6A3] hover:to-[#00E65A] text-black font-bold rounded-lg p-2.5 shadow-[0_0_15px_rgba(48,255,110,0.3)] hover:shadow-[0_0_25px_rgba(48,255,110,0.5)] transition-all duration-200 cursor-pointer"
+              >
+                <div class="text-sm">
+                  Claim {{ formatClaimableAmount(token) }}
+                </div>
+              </button>
+              <!-- Disabled state for maxed/incompatible -->
+              <div v-else class="bg-[#30FF6E]/5 border border-[#30FF6E]/25 rounded-lg p-2.5 shadow-[0_0_15px_rgba(48,255,110,0.08)]">
                 <div class="text-sm font-bold text-white">
                   <span class="text-[#30FF6E]">{{ formatClaimableAmount(token) }}</span>
                 </div>
@@ -142,6 +152,8 @@ const props = defineProps({
   isValid: Boolean,
   hoveringWallet: String,
 });
+
+const emit = defineEmits(['claim']);
 
 const { config } = useConfig();
 const tokenBalances = ref({});
@@ -260,6 +272,14 @@ const getTokenTypeBadgeClass = (token) => {
 const formatContractAddress = (address) => {
   if (!address) return '';
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
+};
+
+const formatIbcDenom = (denom) => {
+  if (!denom) return '';
+  // IBC denoms are like "ibc/ABC123..." - show "ibc/ABC1...23"
+  const hash = denom.replace('ibc/', '');
+  if (hash.length <= 10) return denom;
+  return `ibc/${hash.slice(0, 4)}...${hash.slice(-4)}`;
 };
 
 const formatTokenAmount = (token) => {

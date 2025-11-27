@@ -12,7 +12,7 @@ const config = {
     name: 'republic',
     type: 'DualEnvironment',
     ids: {
-      chainId: 4231,
+      chainId: 77701,
       cosmosChainId: 'republic_77701-1',
     },
     endpoints: {
@@ -21,8 +21,8 @@ const config = {
       rest_endpoint: 'https://rpc.republicai.io:1317',
       evm_endpoint: 'https://rpc.republicai.io:8545',
       evm_websocket: 'wss://rpc.republicai.io:8546',
-      evm_explorer: 'https://yaci-explorer.fly.dev',
-      cosmos_explorer: 'https://yaci-explorer.fly.dev',
+      evm_explorer: 'https://explorer.republicai.io',
+      cosmos_explorer: 'https://explorer.republicai.io',
     },
     sender: {
       option: {

@@ -263,13 +263,10 @@ const explorerUrl = computed(() => {
   // Generate URL based on transaction type and hash
   if (actualHash) {
     if (isEvmTransaction.value) {
-      const explorerBase =
-        networkConfig.value.evm?.explorer || 'https://evm-devnet-1.cloud.blockscout.com';
+      const explorerBase = networkConfig.value.evm?.explorer || 'https://explorer.republicai.io';
       return `${explorerBase}/tx/${actualHash}`;
     } else if (isCosmosTransaction.value) {
-      const explorerBase =
-        networkConfig.value.cosmos?.explorer ||
-        'https://devnet-explorer.fly.dev/Cosmos%20Evm%20Devnet';
+      const explorerBase = networkConfig.value.cosmos?.explorer || 'https://explorer.republicai.io';
       return `${explorerBase}/tx/${actualHash}`;
     }
   }

@@ -36,6 +36,8 @@ const __dirname = dirname(__filename);
 const corsOptions = {
   origin: (origin, callback) => {
     const allowedOrigins = [
+      'https://faucet.republicai.io',
+      'https://republic-devnet-faucet.fly.dev',
       'https://faucet.cosmos-evm.com',
       'https://cosmos-evm.com',
       'https://faucet.basementnodes.ca',

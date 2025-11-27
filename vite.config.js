@@ -17,7 +17,7 @@ export default defineConfig({
     stringify: true,
   },
   optimizeDeps: {
-    include: ['@reown/appkit', '@reown/appkit-adapter-wagmi'],
+    include: ['@reown/appkit', '@reown/appkit-adapter-wagmi', '@wagmi/core', 'wagmi', 'viem'],
     exclude: [],
   },
   build: {
@@ -41,7 +41,6 @@ export default defineConfig({
             '@cosmjs/stargate',
             'cosmjs-types',
           ],
-          'wallet-vendor': ['@reown/appkit', '@reown/appkit-adapter-wagmi', 'viem'],
           'crypto-vendor': [
             'bip39',
             'bip32',
