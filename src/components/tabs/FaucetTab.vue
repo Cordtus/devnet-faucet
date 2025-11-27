@@ -8,18 +8,57 @@
 
         <div class="space-y-1">
           <p class="text-xl font-medium text-white">
-            {{evmWallet.connected ? "Wallet Connected" : "Connect browser wallet"}}
+            {{hasConnectedWallets ? "Wallet Connected" : "Connect your wallet"}}
           </p>
           <p class="text-base font-normal text-[#626C71]">
-            {{evmWallet.connected
+            {{hasConnectedWallets
               ? "Your wallet is connected and ready to receive testnet tokens"
-              : "New here? Add testnet to your wallet"}}
+              : "Connect your wallet or enter an address to receive testnet tokens"}}
           </p>
+        </div>
+
+        <!-- Wallet Connection Buttons -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- Keplr Wallet Button -->
+          <Button
+            @click="cosmosWallet.connected ? disconnectKeplr() : handleCosmosConnect()"
+            :disabled="cosmosWallet.connecting || !config"
+            :class="cosmosWallet.connected
+              ? 'border border-[#FF6E6E40] bg-gradient-to-r from-[#1A0D0D] to-[#0F0A0A] text-[#FF6E6E] hover:text-white hover:border-[#FF6E6E]'
+              : 'border border-[#5E5E5E40] bg-gradient-to-r from-[#0D0F0F] to-[#0A0C0C] text-[#626C71] hover:text-white disabled:opacity-50'"
+            class="w-full justify-center"
+          >
+            <span v-if="cosmosWallet.connecting" class="loading-spinner mr-2"></span>
+            <i v-else class="fas fa-atom mr-2"></i>
+            <span v-if="cosmosWallet.connected">
+              {{ formatAddress(cosmosWallet.address) }} (Disconnect)
+            </span>
+            <span v-else-if="cosmosWallet.connecting">Connecting...</span>
+            <span v-else>Connect Keplr</span>
+          </Button>
+
+          <!-- EVM Wallet Button -->
+          <Button
+            @click="evmWallet.connected ? handleEvmDisconnect() : handleEvmConnect()"
+            :disabled="evmWallet.connecting"
+            :class="evmWallet.connected
+              ? 'border border-[#FF6E6E40] bg-gradient-to-r from-[#1A0D0D] to-[#0F0A0A] text-[#FF6E6E] hover:text-white hover:border-[#FF6E6E]'
+              : 'border border-[#5E5E5E40] bg-gradient-to-r from-[#0D0F0F] to-[#0A0C0C] text-[#626C71] hover:text-white disabled:opacity-50'"
+            class="w-full justify-center"
+          >
+            <span v-if="evmWallet.connecting" class="loading-spinner mr-2"></span>
+            <i v-else class="fab fa-ethereum mr-2"></i>
+            <span v-if="evmWallet.connected">
+              {{ formatAddress(evmWallet.address) }} (Disconnect)
+            </span>
+            <span v-else-if="evmWallet.connecting">Connecting...</span>
+            <span v-else>Connect EVM Wallet</span>
+          </Button>
         </div>
 
         <div class="space-y-2">
           <div>
-          <InputField :is-connected="evmWallet.connected" className="!bg-transparent" placeholder="republic... or 0x..." v-model="address" :full-width="true">
+          <InputField :is-connected="hasConnectedWallets" className="!bg-transparent" placeholder="republic... or 0x..." v-model="address" :full-width="true">
             <template v-if="hasConnectedWallets" #rightSection>
               <ButtonGroup>
               <Button 
@@ -66,14 +105,7 @@
             Invalid address format
           </small>
 
-<br/>
-          <!-- Faucet usage info -->
-          <div class="text-base font-normal text-[#626C71]">
-            <p class="text-xs sm:text-sm text-[#626C71] flex items-start gap-2">
-              <i class="text-base font-normal text-[#626C71]"></i>
-              <span>Logged when a wallet uses the faucet, then have them wait <span class="text-[#30FF6E] font-semibold">6 hours</span> before using it again.</span>
-            </p>
-          </div>
+
         </div>
         </div>
         
@@ -121,7 +153,7 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 
-const { cosmosWallet, evmWallet } = useWalletStore();
+const { cosmosWallet, evmWallet, connectKeplr, disconnectKeplr, disconnectEvm } = useWalletStore();
 const { config } = useConfig();
 const { addTransactionToHistory } = useTransactions();
 
@@ -219,6 +251,46 @@ const openModal = () => {
   } else {
     alert('Wallet connection is initializing. Please try again in a moment.');
   }
+};
+
+const handleCosmosConnect = async () => {
+  if (isMobile()) {
+    if (window.keplr) {
+      await connectKeplr(config.value?.network);
+    } else {
+      message.value = `
+        <div class="bg-blue-900/50 border border-blue-500 rounded-lg p-4 mb-4 relative">
+          <h6 class="text-blue-300 font-semibold mb-2 flex items-center">
+            <i class="fas fa-mobile-alt mr-2"></i>Keplr Mobile Instructions
+          </h6>
+          <p class="text-blue-200 mb-3">To use your Keplr wallet:</p>
+          <ol class="text-blue-200 mb-3 ml-4 list-decimal">
+            <li>Open the Keplr app</li>
+            <li>Select your wallet</li>
+            <li>Copy your wallet address</li>
+            <li>Return here and paste it in the wallet address field above</li>
+          </ol>
+          <p class="text-blue-400 text-sm mb-0">
+            <i class="fas fa-info-circle mr-1"></i>
+            This devnet chain may not be listed in Keplr. Just copy your address manually.
+          </p>
+        </div>
+      `;
+    }
+  } else {
+    connectKeplr(config.value?.network);
+  }
+};
+
+const handleEvmConnect = () => {
+  openModal();
+};
+
+const handleEvmDisconnect = async () => {
+  if (disconnectAppKit) {
+    await disconnectAppKit();
+  }
+  disconnectEvm();
 };
 
 const requestToken = async () => {

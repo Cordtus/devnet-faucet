@@ -12,7 +12,7 @@ const config = {
     name: 'republic',
     type: 'DualEnvironment',
     ids: {
-      chainId: 4231,
+      chainId: 77701,
       cosmosChainId: 'republic_77701-1',
     },
     endpoints: {
